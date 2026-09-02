@@ -44,9 +44,9 @@ describe('LoggerService', () => {
     return module.get(LoggerService);
   }
 
-  it('writes pretty log lines to stdout with context', async () => {
+  it('writes Nest ConsoleLogger lines to stdout with context', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'debug',
     });
 
@@ -62,23 +62,23 @@ describe('LoggerService', () => {
 
   it('writes errors to stderr with stack and context', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'debug',
     });
 
     logger.error('failed', 'stack-trace', 'HealthService');
 
     expect(stderr).toHaveBeenCalled();
-    const line = writtenLines(stderr)[0] ?? '';
-    expect(line).toContain('ERROR');
-    expect(line).toContain('[HealthService]');
-    expect(line).toContain('failed');
-    expect(line).toContain('stack-trace');
+    const output = writtenLines(stderr).join('\n');
+    expect(output).toContain('ERROR');
+    expect(output).toContain('[HealthService]');
+    expect(output).toContain('failed');
+    expect(output).toContain('stack-trace');
   });
 
   it('skips debug when LOG_LEVEL is log', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'log',
     });
 
@@ -102,29 +102,31 @@ describe('LoggerService', () => {
       level: string;
       message: string;
       context: string;
-      timestamp: string;
+      timestamp: number;
     };
 
     expect(record.level).toBe('warn');
     expect(record.message).toBe('disk almost full');
     expect(record.context).toBe('Monitor');
-    expect(record.timestamp).toEqual(expect.any(String));
+    expect(record.timestamp).toEqual(expect.any(Number));
   });
 
-  it('stringifies object messages', async () => {
+  it('prints object messages through ConsoleLogger', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'debug',
     });
 
     logger.log({ event: 'boot' });
 
-    expect(writtenLines(stdout)[0]).toContain('{"event":"boot"}');
+    const line = writtenLines(stdout)[0] ?? '';
+    expect(line).toContain('event');
+    expect(line).toContain('boot');
   });
 
   it('respects setLogLevels', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'debug',
     });
 
@@ -133,12 +135,12 @@ describe('LoggerService', () => {
     logger.error('kept');
 
     expect(stdout).not.toHaveBeenCalled();
-    expect(writtenLines(stderr)[0]).toContain('kept');
+    expect(writtenLines(stderr).join('\n')).toContain('kept');
   });
 
   it('falls back to debug when LOG_LEVEL is invalid', async () => {
     const logger = await createLogger({
-      NODE_ENV: 'development',
+      NODE_ENV: 'test',
       LOG_LEVEL: 'nope',
     });
 

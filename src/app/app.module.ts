@@ -7,6 +7,7 @@ import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin
 import { HealthModule } from '../health/health.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       path: '/graphql',
-      playground: true,
+      playground: false,
       introspection: true,
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
     }),
