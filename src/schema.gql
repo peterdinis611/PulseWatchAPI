@@ -2,13 +2,52 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AuthPayload {
+  accessToken: String!
+  user: User!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type HealthPayload {
   database: String!
   status: String!
   timestamp: String!
 }
 
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  """Sign in and receive a JWT"""
+  login(input: LoginInput!): AuthPayload!
+
+  """Create an account"""
+  register(input: RegisterInput!): AuthPayload!
+}
+
 type Query {
   """Application and SQLite connectivity check"""
   health: HealthPayload!
+
+  """Currently authenticated user"""
+  me: User!
+}
+
+input RegisterInput {
+  email: String!
+  name: String
+  password: String!
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  id: String!
+  name: String
 }

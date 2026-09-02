@@ -2,6 +2,8 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 import { HealthModule } from '../../health/health.module';
 import { LoggerModule } from '../../logger/logger.module';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { AuthModule } from '../../auth/auth.module';
+import { UserModule } from '../../user/user.module';
 import { AppController } from '../app.controller';
 import { AppModule } from '../app.module';
 
@@ -15,14 +17,20 @@ describe('AppModule', () => {
     expect(controllers).toEqual(expect.arrayContaining([AppController]));
   });
 
-  it('imports PrismaModule, HealthModule and LoggerModule', () => {
+  it('imports Prisma, Health, Logger, User and Auth modules', () => {
     const imports = Reflect.getMetadata(
       MODULE_METADATA.IMPORTS,
       AppModule,
     ) as unknown[];
 
     expect(imports).toEqual(
-      expect.arrayContaining([PrismaModule, HealthModule, LoggerModule]),
+      expect.arrayContaining([
+        PrismaModule,
+        HealthModule,
+        LoggerModule,
+        UserModule,
+        AuthModule,
+      ]),
     );
   });
 });
