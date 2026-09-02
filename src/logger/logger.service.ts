@@ -92,7 +92,9 @@ export class LoggerService implements NestLoggerService {
       ...(stack ? { stack } : {}),
     };
 
-    const line = this.json ? `${JSON.stringify(record)}\n` : this.formatPretty(record);
+    const line = this.json
+      ? `${JSON.stringify(record)}\n`
+      : this.formatPretty(record);
     const stream =
       level === 'error' || level === 'fatal' ? process.stderr : process.stdout;
     stream.write(line);
@@ -102,10 +104,7 @@ export class LoggerService implements NestLoggerService {
     return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(this.minLevel);
   }
 
-  private parseLevel(
-    value: string | undefined,
-    fallback: LogLevel,
-  ): LogLevel {
+  private parseLevel(value: string | undefined, fallback: LogLevel): LogLevel {
     if (value && (LOG_LEVELS as string[]).includes(value)) {
       return value as LogLevel;
     }

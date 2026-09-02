@@ -8,9 +8,15 @@ function createConfig(values: Record<string, string | undefined>) {
   };
 }
 
+function writtenLines(
+  spy: jest.SpiedFunction<typeof process.stdout.write>,
+): string[] {
+  return spy.mock.calls.map((call) => String(call[0] ?? ''));
+}
+
 describe('LoggerService', () => {
-  let stdout: jest.SpyInstance;
-  let stderr: jest.SpyInstance;
+  let stdout: jest.SpiedFunction<typeof process.stdout.write>;
+  let stderr: jest.SpiedFunction<typeof process.stderr.write>;
 
   beforeEach(() => {
     stdout = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -47,7 +53,7 @@ describe('LoggerService', () => {
     logger.log('listening', 'Bootstrap');
 
     expect(stdout).toHaveBeenCalled();
-    const line = String(stdout.mock.calls[0][0]);
+    const line = writtenLines(stdout)[0] ?? '';
     expect(line).toContain('LOG');
     expect(line).toContain('[Bootstrap]');
     expect(line).toContain('listening');
@@ -63,7 +69,7 @@ describe('LoggerService', () => {
     logger.error('failed', 'stack-trace', 'HealthService');
 
     expect(stderr).toHaveBeenCalled();
-    const line = String(stderr.mock.calls[0][0]);
+    const line = writtenLines(stderr)[0] ?? '';
     expect(line).toContain('ERROR');
     expect(line).toContain('[HealthService]');
     expect(line).toContain('failed');
@@ -79,7 +85,7 @@ describe('LoggerService', () => {
     logger.debug('hidden');
     logger.log('visible');
 
-    const lines = stdout.mock.calls.map((call) => String(call[0]));
+    const lines = writtenLines(stdout);
     expect(lines.some((line) => line.includes('hidden'))).toBe(false);
     expect(lines.some((line) => line.includes('visible'))).toBe(true);
   });
@@ -92,7 +98,7 @@ describe('LoggerService', () => {
 
     logger.warn('disk almost full', 'Monitor');
 
-    const record = JSON.parse(String(stdout.mock.calls[0][0])) as {
+    const record = JSON.parse(writtenLines(stdout)[0] ?? '{}') as {
       level: string;
       message: string;
       context: string;
@@ -113,7 +119,7 @@ describe('LoggerService', () => {
 
     logger.log({ event: 'boot' });
 
-    expect(String(stdout.mock.calls[0][0])).toContain('{"event":"boot"}');
+    expect(writtenLines(stdout)[0]).toContain('{"event":"boot"}');
   });
 
   it('respects setLogLevels', async () => {
@@ -127,7 +133,7 @@ describe('LoggerService', () => {
     logger.error('kept');
 
     expect(stdout).not.toHaveBeenCalled();
-    expect(String(stderr.mock.calls[0][0])).toContain('kept');
+    expect(writtenLines(stderr)[0]).toContain('kept');
   });
 
   it('falls back to debug when LOG_LEVEL is invalid', async () => {
@@ -138,6 +144,6 @@ describe('LoggerService', () => {
 
     logger.debug('still visible');
 
-    expect(String(stdout.mock.calls[0][0])).toContain('still visible');
+    expect(writtenLines(stdout)[0]).toContain('still visible');
   });
 });

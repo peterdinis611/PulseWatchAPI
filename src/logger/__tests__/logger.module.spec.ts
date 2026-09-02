@@ -1,4 +1,7 @@
-import { GLOBAL_MODULE_METADATA, MODULE_METADATA } from '@nestjs/common/constants';
+import {
+  GLOBAL_MODULE_METADATA,
+  MODULE_METADATA,
+} from '@nestjs/common/constants';
 import { LoggerModule } from '../logger.module';
 import { LoggerService } from '../logger.service';
 
