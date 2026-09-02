@@ -1,13 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../prisma/prisma.service';
-import { HealthService } from './health.service';
+import { LoggerService } from '../../logger/logger.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { HealthService } from '../health.service';
 
 describe('HealthService', () => {
   let service: HealthService;
   let queryRaw: jest.Mock;
+  let debug: jest.Mock;
+  let error: jest.Mock;
 
   beforeEach(async () => {
     queryRaw = jest.fn().mockResolvedValue([{ 1: 1 }]);
+    debug = jest.fn();
+    error = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -16,10 +21,18 @@ describe('HealthService', () => {
           provide: PrismaService,
           useValue: { $queryRaw: queryRaw },
         },
+        {
+          provide: LoggerService,
+          useValue: { debug, error },
+        },
       ],
     }).compile();
 
     service = module.get(HealthService);
+  });
+
+  it('is defined', () => {
+    expect(service).toBeDefined();
   });
 
   it('returns ok when SQLite responds', async () => {
@@ -29,6 +42,11 @@ describe('HealthService', () => {
     expect(result.status).toBe('ok');
     expect(result.database).toBe('connected');
     expect(result.timestamp).toEqual(expect.any(String));
+    expect(Number.isNaN(Date.parse(result.timestamp))).toBe(false);
+    expect(debug).toHaveBeenCalledWith(
+      'SQLite health check ok',
+      HealthService.name,
+    );
   });
 
   it('returns degraded when SQLite fails', async () => {
@@ -38,5 +56,11 @@ describe('HealthService', () => {
 
     expect(result.status).toBe('degraded');
     expect(result.database).toBe('error');
+    expect(result.timestamp).toEqual(expect.any(String));
+    expect(error).toHaveBeenCalledWith(
+      'SQLite health check failed',
+      expect.any(String),
+      HealthService.name,
+    );
   });
 });

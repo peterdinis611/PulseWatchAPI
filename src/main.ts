@@ -3,12 +3,16 @@ import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from './app/app.module';
+import { LoggerService } from './logger/logger.service';
 
 async function bootstrap() {
   mkdirSync(join(process.cwd(), 'data'), { recursive: true });
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = app.get(LoggerService);
+  app.useLogger(logger);
+
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 4000);
 
@@ -22,6 +26,7 @@ async function bootstrap() {
   );
 
   await app.listen(port);
+  logger.log(`Listening on port ${port}`, 'Bootstrap');
 }
 
 void bootstrap();
