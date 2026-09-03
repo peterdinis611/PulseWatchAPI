@@ -143,6 +143,14 @@ type MonitorConfig {
   url: String
 }
 
+type MonitorSettings {
+  defaultIntervalSec: Int!
+  defaultTimeoutMs: Int!
+  notifyOnDown: Boolean!
+  notifyOnRecover: Boolean!
+  updatedAt: DateTime!
+}
+
 """Latest probe result for a monitor"""
 enum MonitorStatus {
   DOWN
@@ -199,6 +207,9 @@ type Mutation {
   """Update a monitor"""
   updateMonitor(id: String!, input: UpdateMonitorInput!): Monitor!
 
+  """Update monitor defaults and alert preferences"""
+  updateMonitorSettings(input: UpdateMonitorSettingsInput!): MonitorSettings!
+
   """Update a k6 stress test"""
   updateStressTest(id: String!, input: UpdateStressTestInput!): StressTest!
 }
@@ -229,6 +240,9 @@ type Query {
 
   """A single monitor owned by the signed-in user"""
   monitor(id: String!): Monitor!
+
+  """Monitor defaults and alert preferences for the signed-in user"""
+  monitorSettings: MonitorSettings!
 
   """Monitors owned by the signed-in user"""
   monitors: [Monitor!]!
@@ -359,6 +373,13 @@ input UpdateMonitorInput {
   tcp: TcpMonitorConfigInput
   timeoutMs: Int
   type: MonitorType
+}
+
+input UpdateMonitorSettingsInput {
+  defaultIntervalSec: Int
+  defaultTimeoutMs: Int
+  notifyOnDown: Boolean
+  notifyOnRecover: Boolean
 }
 
 input UpdateStressTestInput {

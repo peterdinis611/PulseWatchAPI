@@ -6,12 +6,21 @@ import { UuidArgs } from '../common/uuid-args';
 import type { PublicUser } from '../user/public-user';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
+import { UpdateMonitorSettingsInput } from './dto/update-monitor-settings.input';
 import { Monitor } from './monitor.model';
+import { MonitorSettings } from './monitor-settings.model';
 import { MonitorService, MonitorView } from './monitor.service';
+import {
+  MonitorSettingsService,
+  MonitorSettingsView,
+} from './monitor-settings.service';
 
 @Resolver(() => Monitor)
 export class MonitorResolver {
-  constructor(private readonly monitorService: MonitorService) {}
+  constructor(
+    private readonly monitorService: MonitorService,
+    private readonly settings: MonitorSettingsService,
+  ) {}
 
   @Query(() => [Monitor], {
     description: 'Monitors owned by the signed-in user',
@@ -69,5 +78,27 @@ export class MonitorResolver {
     @UuidArgs() id: string,
   ): Promise<MonitorView> {
     return this.monitorService.checkForUser(user.id, id);
+  }
+
+  @Query(() => MonitorSettings, {
+    description:
+      'Monitor defaults and alert preferences for the signed-in user',
+  })
+  @UseGuards(GqlAuthGuard)
+  monitorSettings(
+    @CurrentUser() user: PublicUser,
+  ): Promise<MonitorSettingsView> {
+    return this.settings.getForUser(user.id);
+  }
+
+  @Mutation(() => MonitorSettings, {
+    description: 'Update monitor defaults and alert preferences',
+  })
+  @UseGuards(GqlAuthGuard)
+  updateMonitorSettings(
+    @CurrentUser() user: PublicUser,
+    @Args('input') input: UpdateMonitorSettingsInput,
+  ): Promise<MonitorSettingsView> {
+    return this.settings.updateForUser(user.id, input);
   }
 }

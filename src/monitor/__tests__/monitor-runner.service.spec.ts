@@ -7,8 +7,10 @@ import { NotificationService } from '../../notification/notification.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MonitorProbeService } from '../monitor-probe.service';
 import { MonitorRunnerService } from '../monitor-runner.service';
+import { MonitorSettingsService } from '../monitor-settings.service';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
+import { createTestMonitorSettingsService } from './create-test-monitor-settings';
 
 describe('MonitorRunnerService', () => {
   let runner: MonitorRunnerService;
@@ -17,6 +19,7 @@ describe('MonitorRunnerService', () => {
   let update: jest.Mock;
   let probe: jest.Mock;
   let createForUser: jest.Mock;
+  let settings: ReturnType<typeof createTestMonitorSettingsService>;
 
   const monitor = {
     id: 'm-1',
@@ -45,6 +48,7 @@ describe('MonitorRunnerService', () => {
     update = jest.fn();
     probe = jest.fn();
     createForUser = jest.fn().mockResolvedValue({});
+    settings = createTestMonitorSettingsService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,6 +74,10 @@ describe('MonitorRunnerService', () => {
         {
           provide: CacheService,
           useValue: createTestCacheService(),
+        },
+        {
+          provide: MonitorSettingsService,
+          useValue: settings,
         },
       ],
     }).compile();
@@ -131,6 +139,30 @@ describe('MonitorRunnerService', () => {
       latencyMs: 8,
     });
     update.mockResolvedValue({ ...monitor, lastStatus: MonitorStatus.UP });
+
+    await runner.run('m-1');
+
+    expect(createForUser).not.toHaveBeenCalled();
+  });
+
+  it('skips down alerts when the user disabled them', async () => {
+    settings.getForUser.mockResolvedValue({
+      defaultIntervalSec: 60,
+      defaultTimeoutMs: 10000,
+      notifyOnDown: false,
+      notifyOnRecover: true,
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    findUnique.mockResolvedValue(monitor);
+    probe.mockResolvedValue({
+      status: MonitorStatus.DOWN,
+      error: 'Expected HTTP 200, received 503',
+      latencyMs: 20,
+    });
+    update.mockResolvedValue({
+      ...monitor,
+      lastStatus: MonitorStatus.DOWN,
+    });
 
     await runner.run('m-1');
 

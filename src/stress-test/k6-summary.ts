@@ -10,6 +10,7 @@ export type StressTestSummaryValue = {
 type K6MetricValues = {
   count?: number;
   rate?: number;
+  value?: number;
   avg?: number;
   'p(95)'?: number;
   passes?: number;
@@ -17,11 +18,24 @@ type K6MetricValues = {
 };
 
 type K6SummaryFile = {
-  metrics?: Record<string, { values?: K6MetricValues } | undefined>;
+  metrics?: Record<string, unknown>;
 };
 
 function numeric(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function metricValues(metric: unknown): K6MetricValues | null {
+  if (!metric || typeof metric !== 'object' || Array.isArray(metric)) {
+    return null;
+  }
+
+  const record = metric as { values?: unknown };
+  if (record.values && typeof record.values === 'object') {
+    return record.values as K6MetricValues;
+  }
+
+  return record as K6MetricValues;
 }
 
 export function parseK6Summary(raw: string): StressTestSummaryValue | null {
@@ -32,14 +46,14 @@ export function parseK6Summary(raw: string): StressTestSummaryValue | null {
       return null;
     }
 
-    const httpReqs = metrics.http_reqs?.values;
-    const failed = metrics.http_req_failed?.values;
-    const duration = metrics.http_req_duration?.values;
-    const checks = metrics.checks?.values;
+    const httpReqs = metricValues(metrics.http_reqs);
+    const failed = metricValues(metrics.http_req_failed);
+    const duration = metricValues(metrics.http_req_duration);
+    const checks = metricValues(metrics.checks);
 
     return {
       httpReqs: numeric(httpReqs?.count),
-      failRate: numeric(failed?.rate),
+      failRate: numeric(failed?.rate) ?? numeric(failed?.value),
       p95Ms: numeric(duration?.['p(95)']),
       avgMs: numeric(duration?.avg),
       checksPassed: numeric(checks?.passes),

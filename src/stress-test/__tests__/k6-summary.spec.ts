@@ -23,6 +23,28 @@ describe('parseK6Summary', () => {
     });
   });
 
+  it('reads k6 v2 flat metrics', () => {
+    const summary = parseK6Summary(
+      JSON.stringify({
+        metrics: {
+          http_reqs: { count: 8777, rate: 8775 },
+          http_req_failed: { passes: 0, fails: 8777, value: 0 },
+          http_req_duration: { avg: 0.059, 'p(95)': 0.074 },
+          checks: { passes: 8777, fails: 0, value: 1 },
+        },
+      }),
+    );
+
+    expect(summary).toEqual({
+      httpReqs: 8777,
+      failRate: 0,
+      p95Ms: 0.074,
+      avgMs: 0.059,
+      checksPassed: 8777,
+      checksFailed: 0,
+    });
+  });
+
   it('returns null for invalid JSON', () => {
     expect(parseK6Summary('not-json')).toBeNull();
     expect(parseK6Summary('{}')).toBeNull();

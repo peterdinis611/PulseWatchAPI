@@ -90,7 +90,7 @@ describe('Stress tests (e2e)', () => {
   });
 
   it('creates, lists, updates and deletes a k6 stress test', async () => {
-    const auth = await register(app, 'stress@pulsewatch.dev');
+    const auth = await register(app, `stress-${Date.now()}@pulsewatch.dev`);
 
     const created = await gql<{ createStressTest: StressTestBody }>(
       app,

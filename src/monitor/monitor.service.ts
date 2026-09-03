@@ -14,8 +14,8 @@ import {
   serializeMonitorConfig,
   type MonitorConfigValue,
 } from './monitor-config';
-import { DEFAULT_INTERVAL_SEC, DEFAULT_TIMEOUT_MS } from './monitor.constants';
 import { MonitorRunnerService } from './monitor-runner.service';
+import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorStatus } from './monitor-status';
 import { MonitorType } from './monitor-type';
 import {
@@ -63,6 +63,7 @@ export class MonitorService {
     private readonly runner: MonitorRunnerService,
     private readonly cache: CacheService,
     private readonly jobs: JobsService,
+    private readonly settings: MonitorSettingsService,
   ) {}
 
   async listForUser(userId: string): Promise<MonitorView[]> {
@@ -93,14 +94,15 @@ export class MonitorService {
     }
 
     const config = resolveMonitorConfig(input.type, input, true);
+    const defaults = await this.settings.getForUser(userId);
     const created = await this.prisma.monitor.create({
       data: {
         userId,
         name,
         type: input.type,
         enabled: input.enabled ?? true,
-        intervalSec: input.intervalSec ?? DEFAULT_INTERVAL_SEC,
-        timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        intervalSec: input.intervalSec ?? defaults.defaultIntervalSec,
+        timeoutMs: input.timeoutMs ?? defaults.defaultTimeoutMs,
         config: serializeMonitorConfig(config),
       },
       select: monitorSelect,

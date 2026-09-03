@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import type { PublicUser } from '../../user/public-user';
 import { MonitorResolver } from '../monitor.resolver';
 import { MonitorService } from '../monitor.service';
+import { MonitorSettingsService } from '../monitor-settings.service';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
 
@@ -13,6 +14,8 @@ describe('MonitorResolver', () => {
   let updateForUser: jest.Mock;
   let deleteForUser: jest.Mock;
   let checkForUser: jest.Mock;
+  let getForUser: jest.Mock;
+  let updateForUserSettings: jest.Mock;
 
   const user: PublicUser = {
     id: 'user-1',
@@ -44,6 +47,20 @@ describe('MonitorResolver', () => {
     updateForUser = jest.fn().mockResolvedValue(view);
     deleteForUser = jest.fn().mockResolvedValue(true);
     checkForUser = jest.fn().mockResolvedValue(view);
+    getForUser = jest.fn().mockResolvedValue({
+      defaultIntervalSec: 60,
+      defaultTimeoutMs: 10000,
+      notifyOnDown: true,
+      notifyOnRecover: true,
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    updateForUserSettings = jest.fn().mockResolvedValue({
+      defaultIntervalSec: 30,
+      defaultTimeoutMs: 5000,
+      notifyOnDown: false,
+      notifyOnRecover: true,
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +74,13 @@ describe('MonitorResolver', () => {
             updateForUser,
             deleteForUser,
             checkForUser,
+          },
+        },
+        {
+          provide: MonitorSettingsService,
+          useValue: {
+            getForUser,
+            updateForUser: updateForUserSettings,
           },
         },
       ],
@@ -88,5 +112,20 @@ describe('MonitorResolver', () => {
     });
     expect(checkForUser).toHaveBeenCalledWith('user-1', 'm-1');
     expect(deleteForUser).toHaveBeenCalledWith('user-1', 'm-1');
+  });
+
+  it('loads and updates per-user monitor settings', async () => {
+    await expect(resolver.monitorSettings(user)).resolves.toEqual(
+      expect.objectContaining({ defaultIntervalSec: 60, notifyOnDown: true }),
+    );
+    await resolver.updateMonitorSettings(user, {
+      defaultIntervalSec: 30,
+      notifyOnDown: false,
+    });
+    expect(getForUser).toHaveBeenCalledWith('user-1');
+    expect(updateForUserSettings).toHaveBeenCalledWith('user-1', {
+      defaultIntervalSec: 30,
+      notifyOnDown: false,
+    });
   });
 });

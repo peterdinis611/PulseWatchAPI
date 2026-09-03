@@ -4,6 +4,7 @@ import { MonitorProbeService } from '../monitor-probe.service';
 import { MonitorResolver } from '../monitor.resolver';
 import { MonitorRunnerService } from '../monitor-runner.service';
 import { MonitorSchedulerService } from '../monitor-scheduler.service';
+import { MonitorSettingsService } from '../monitor-settings.service';
 import { MonitorService } from '../monitor.service';
 
 describe('MonitorModule', () => {
@@ -20,6 +21,7 @@ describe('MonitorModule', () => {
         MonitorProbeService,
         MonitorRunnerService,
         MonitorSchedulerService,
+        MonitorSettingsService,
       ]),
     );
   });

@@ -79,6 +79,15 @@ describe('UserService', () => {
         name: 'Ada',
       }),
     ).resolves.toEqual(publicUser);
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        email: 'ada@pulsewatch.dev',
+        passwordHash: 'hash',
+        name: 'Ada',
+        monitorSettings: { create: {} },
+      },
+      select: expect.any(Object),
+    });
   });
 
   it('maps unique email conflicts', async () => {

@@ -468,4 +468,81 @@ describe('Monitors (e2e)', () => {
     );
     expect(removed.data?.deleteMonitor).toBe(true);
   });
+
+  it('stores per-user monitor defaults and uses them on create', async () => {
+    const auth = await register(app, `settings-${Date.now()}@pulsewatch.dev`);
+
+    const defaults = await gql<{
+      monitorSettings: {
+        defaultIntervalSec: number;
+        defaultTimeoutMs: number;
+        notifyOnDown: boolean;
+        notifyOnRecover: boolean;
+      };
+    }>(
+      app,
+      `{ monitorSettings { defaultIntervalSec defaultTimeoutMs notifyOnDown notifyOnRecover } }`,
+      {
+        token: auth.accessToken,
+      },
+    );
+    expect(defaults.errors).toBeUndefined();
+    expect(defaults.data?.monitorSettings).toEqual({
+      defaultIntervalSec: 60,
+      defaultTimeoutMs: 10000,
+      notifyOnDown: true,
+      notifyOnRecover: true,
+    });
+
+    const updated = await gql<{
+      updateMonitorSettings: {
+        defaultIntervalSec: number;
+        notifyOnDown: boolean;
+      };
+    }>(
+      app,
+      `
+        mutation Update($input: UpdateMonitorSettingsInput!) {
+          updateMonitorSettings(input: $input) {
+            defaultIntervalSec
+            notifyOnDown
+          }
+        }
+      `,
+      {
+        token: auth.accessToken,
+        variables: { input: { defaultIntervalSec: 30, notifyOnDown: false } },
+      },
+    );
+    expect(updated.data?.updateMonitorSettings).toEqual({
+      defaultIntervalSec: 30,
+      notifyOnDown: false,
+    });
+
+    const created = await gql<{
+      createMonitor: { intervalSec: number; timeoutMs: number };
+    }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { intervalSec timeoutMs }
+        }
+      `,
+      {
+        token: auth.accessToken,
+        variables: {
+          input: {
+            name: 'Defaults',
+            type: 'HTTP',
+            http: { url: `http://127.0.0.1:${port}/health` },
+          },
+        },
+      },
+    );
+    expect(created.errors).toBeUndefined();
+    expect(created.data?.createMonitor).toEqual({
+      intervalSec: 30,
+      timeoutMs: 10000,
+    });
+  });
 });

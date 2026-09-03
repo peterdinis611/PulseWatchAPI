@@ -40,9 +40,10 @@ model User {
   name          String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  notifications Notification[]
-  monitors      Monitor[]
-  stressTests   StressTest[]
+  notifications    Notification[]
+  monitors         Monitor[]
+  stressTests      StressTest[]
+  monitorSettings  UserMonitorSettings?
 }
 
 model Notification {
@@ -77,6 +78,17 @@ model Monitor {
 
   @@index([userId, createdAt])
   @@index([enabled, lastCheckedAt])
+}
+
+model UserMonitorSettings {
+  userId             String   @id
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultIntervalSec Int      @default(60)
+  defaultTimeoutMs   Int      @default(10000)
+  notifyOnDown       Boolean  @default(true)
+  notifyOnRecover    Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 enum StressTestStatus {

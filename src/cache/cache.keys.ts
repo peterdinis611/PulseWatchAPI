@@ -13,4 +13,5 @@ export const CacheKeys = {
   stressTestsList: (userId: string): string => `stressTests:${userId}:list`,
   stressTestItem: (userId: string, id: string): string =>
     `stressTests:${userId}:item:${id}`,
+  monitorSettings: (userId: string): string => `monitorSettings:${userId}`,
 };

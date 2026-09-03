@@ -7,6 +7,7 @@ import { CacheService } from '../cache/cache.service';
 import { CacheKeys } from '../cache/cache.keys';
 import { isMonitorDue, parseMonitorConfig } from './monitor-config';
 import { MonitorProbeService } from './monitor-probe.service';
+import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorStatus } from './monitor-status';
 import { MonitorType } from './monitor-type';
 
@@ -54,6 +55,7 @@ export class MonitorRunnerService {
     private readonly notifications: NotificationService,
     private readonly logger: LoggerService,
     private readonly cache: CacheService,
+    private readonly settings: MonitorSettingsService,
   ) {}
 
   async checkDue(): Promise<void> {
@@ -156,7 +158,12 @@ export class MonitorRunnerService {
     }
 
     try {
+      const prefs = await this.settings.getForUser(userId);
+
       if (next === MonitorStatus.DOWN) {
+        if (!prefs.notifyOnDown) {
+          return;
+        }
         await this.notifications.createForUser(userId, {
           type: NotificationType.ALERT,
           title: `${name} is down`,
@@ -166,6 +173,9 @@ export class MonitorRunnerService {
       }
 
       if (previous === MonitorStatus.DOWN && next === MonitorStatus.UP) {
+        if (!prefs.notifyOnRecover) {
+          return;
+        }
         await this.notifications.createForUser(userId, {
           type: NotificationType.SUCCESS,
           title: `${name} recovered`,

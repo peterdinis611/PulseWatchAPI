@@ -65,6 +65,7 @@ export class UserService {
           email: data.email,
           passwordHash: data.passwordHash,
           name: data.name,
+          monitorSettings: { create: {} },
         },
         select: publicUserSelect,
       });

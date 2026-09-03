@@ -9,6 +9,8 @@ import { JobsService } from '../../jobs/jobs.service';
 import { createTestJobsService } from '../../jobs/__tests__/create-test-jobs';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
+import { MonitorSettingsService } from '../monitor-settings.service';
+import { createTestMonitorSettingsService } from './create-test-monitor-settings';
 
 describe('MonitorService', () => {
   let service: MonitorService;
@@ -19,6 +21,7 @@ describe('MonitorService', () => {
   let deleteMany: jest.Mock;
   let run: jest.Mock;
   let jobs: ReturnType<typeof createTestJobsService>;
+  let settings: ReturnType<typeof createTestMonitorSettingsService>;
 
   const row = {
     id: 'm-1',
@@ -49,6 +52,7 @@ describe('MonitorService', () => {
     deleteMany = jest.fn();
     run = jest.fn();
     jobs = createTestJobsService();
+    settings = createTestMonitorSettingsService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,6 +74,10 @@ describe('MonitorService', () => {
         {
           provide: JobsService,
           useValue: jobs,
+        },
+        {
+          provide: MonitorSettingsService,
+          useValue: settings,
         },
       ],
     }).compile();
@@ -99,6 +107,32 @@ describe('MonitorService', () => {
       }),
     );
     expect(jobs.scheduleMonitorCheck).toHaveBeenCalledWith('m-1', 60);
+  });
+
+  it('uses the user default interval and timeout', async () => {
+    settings.getForUser.mockResolvedValue({
+      defaultIntervalSec: 30,
+      defaultTimeoutMs: 5000,
+      notifyOnDown: true,
+      notifyOnRecover: true,
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    create.mockResolvedValue({ ...row, intervalSec: 30, timeoutMs: 5000 });
+
+    await service.createForUser('user-1', {
+      name: 'API',
+      type: MonitorType.HTTP,
+      http: { url: 'https://example.com/health' },
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          intervalSec: 30,
+          timeoutMs: 5000,
+        }),
+      }),
+    );
   });
 
   it('rejects HTTP create without http config', async () => {

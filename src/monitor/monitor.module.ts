@@ -8,6 +8,7 @@ import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorResolver } from './monitor.resolver';
 import { MonitorRunnerService } from './monitor-runner.service';
 import { MonitorSchedulerService } from './monitor-scheduler.service';
+import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorService } from './monitor.service';
 
 const jobProviders = areJobsEnabled()
@@ -22,6 +23,7 @@ const jobProviders = areJobsEnabled()
     MonitorProbeService,
     MonitorRunnerService,
     MonitorSchedulerService,
+    MonitorSettingsService,
     ...jobProviders,
   ],
   exports: [MonitorService],
