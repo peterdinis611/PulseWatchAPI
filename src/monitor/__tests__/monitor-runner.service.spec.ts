@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LoggerService } from '../../logger/logger.service';
+import { CacheService } from '../../cache/cache.service';
+import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { NotificationType } from '../../notification/notification-type';
 import { NotificationService } from '../../notification/notification.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -64,6 +66,10 @@ describe('MonitorRunnerService', () => {
         {
           provide: LoggerService,
           useValue: { debug: jest.fn(), error: jest.fn() },
+        },
+        {
+          provide: CacheService,
+          useValue: createTestCacheService(),
         },
       ],
     }).compile();

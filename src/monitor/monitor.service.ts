@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache.keys';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
 import {
@@ -58,20 +60,25 @@ export class MonitorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly runner: MonitorRunnerService,
+    private readonly cache: CacheService,
   ) {}
 
   async listForUser(userId: string): Promise<MonitorView[]> {
-    const monitors = await this.prisma.monitor.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: monitorSelect,
-    });
+    return this.cache.wrap(CacheKeys.monitorsList(userId), async () => {
+      const monitors = await this.prisma.monitor.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: monitorSelect,
+      });
 
-    return monitors.map((monitor) => this.toView(monitor));
+      return monitors.map((monitor) => this.toView(monitor));
+    });
   }
 
   async findForUser(userId: string, id: string): Promise<MonitorView> {
-    return this.toView(await this.requireOwned(userId, id));
+    return this.cache.wrap(CacheKeys.monitorItem(userId, id), async () =>
+      this.toView(await this.requireOwned(userId, id)),
+    );
   }
 
   async createForUser(
@@ -96,6 +103,7 @@ export class MonitorService {
       },
       select: monitorSelect,
     });
+    this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
 
     return this.toView(created);
   }
@@ -136,6 +144,7 @@ export class MonitorService {
       },
       select: monitorSelect,
     });
+    this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
 
     return this.toView(updated);
   }
@@ -149,6 +158,7 @@ export class MonitorService {
       throw new NotFoundException('Monitor not found');
     }
 
+    this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
     return true;
   }
 

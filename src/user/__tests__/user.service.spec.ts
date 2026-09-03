@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../cache/cache.service';
+import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { UserService } from '../user.service';
 
 describe('UserService', () => {
@@ -29,6 +31,10 @@ describe('UserService', () => {
             user: { findUnique, create },
           },
         },
+        {
+          provide: CacheService,
+          useValue: createTestCacheService(),
+        },
       ],
     }).compile();
 
@@ -51,6 +57,8 @@ describe('UserService', () => {
     findUnique.mockResolvedValue(publicUser);
 
     await expect(service.findPublicById('user-1')).resolves.toEqual(publicUser);
+    await expect(service.findPublicById('user-1')).resolves.toEqual(publicUser);
+    expect(findUnique).toHaveBeenCalledTimes(1);
   });
 
   it('throws when public user is missing', async () => {

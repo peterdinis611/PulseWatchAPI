@@ -10,6 +10,7 @@ import { HealthModule } from '../health/health.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PubSubModule } from '../pubsub/pubsub.module';
+import { CacheModule } from '../cache/cache.module';
 import { NotificationModule } from '../notification/notification.module';
 import { MonitorModule } from '../monitor/monitor.module';
 import { UserModule } from '../user/user.module';
@@ -39,6 +40,7 @@ import { AppController } from './app.controller';
     PrismaModule,
     LoggerModule,
     PubSubModule,
+    CacheModule,
     HealthModule,
     UserModule,
     AuthModule,

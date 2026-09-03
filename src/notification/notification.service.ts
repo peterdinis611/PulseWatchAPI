@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PubSubService } from '../pubsub/pubsub.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache.keys';
 import { notificationReceivedTrigger } from './notification.events';
 import { NotificationType } from './notification-type';
 
@@ -37,6 +39,7 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     private readonly pubSub: PubSubService,
     private readonly logger: LoggerService,
+    private readonly cache: CacheService,
   ) {}
 
   async createForUser(
@@ -56,6 +59,7 @@ export class NotificationService {
     await this.pubSub.publish(notificationReceivedTrigger(userId), {
       notificationReceived: notification,
     });
+    this.cache.invalidatePrefix(CacheKeys.notificationsPrefix(userId));
 
     this.logger.debug(
       `Created ${notification.type} notification ${notification.id} for ${userId}`,
@@ -69,20 +73,26 @@ export class NotificationService {
     userId: string,
     unreadOnly = false,
   ): Promise<NotificationRecord[]> {
-    return this.prisma.notification.findMany({
-      where: {
-        userId,
-        ...(unreadOnly ? { readAt: null } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      select: notificationSelect,
-    }) as Promise<NotificationRecord[]>;
+    return this.cache.wrap(
+      CacheKeys.notificationsList(userId, unreadOnly),
+      () =>
+        this.prisma.notification.findMany({
+          where: {
+            userId,
+            ...(unreadOnly ? { readAt: null } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          select: notificationSelect,
+        }),
+    ) as Promise<NotificationRecord[]>;
   }
 
   unreadCount(userId: string): Promise<number> {
-    return this.prisma.notification.count({
-      where: { userId, readAt: null },
-    });
+    return this.cache.wrap(CacheKeys.notificationsUnreadCount(userId), () =>
+      this.prisma.notification.count({
+        where: { userId, readAt: null },
+      }),
+    );
   }
 
   async markRead(userId: string, id: string): Promise<NotificationRecord> {
@@ -99,11 +109,13 @@ export class NotificationService {
       return existing as NotificationRecord;
     }
 
-    return this.prisma.notification.update({
+    const updated = (await this.prisma.notification.update({
       where: { id },
       data: { readAt: new Date() },
       select: notificationSelect,
-    }) as Promise<NotificationRecord>;
+    })) as NotificationRecord;
+    this.cache.invalidatePrefix(CacheKeys.notificationsPrefix(userId));
+    return updated;
   }
 
   async markAllRead(userId: string): Promise<number> {
@@ -111,6 +123,7 @@ export class NotificationService {
       where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
+    this.cache.invalidatePrefix(CacheKeys.notificationsPrefix(userId));
 
     return result.count;
   }

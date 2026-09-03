@@ -1,0 +1,3 @@
+export const DEFAULT_CACHE_TTL_MS = 15_000;
+export const USER_CACHE_TTL_MS = 60_000;
+export const DEFAULT_CACHE_MAX_ENTRIES = 1_000;

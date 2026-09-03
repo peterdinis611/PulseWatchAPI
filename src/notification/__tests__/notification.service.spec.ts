@@ -3,6 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../../logger/logger.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PubSubService } from '../../pubsub/pubsub.service';
+import { CacheService } from '../../cache/cache.service';
+import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { notificationReceivedTrigger } from '../notification.events';
 import { NotificationType } from '../notification-type';
 import { NotificationService } from '../notification.service';
@@ -60,6 +62,10 @@ describe('NotificationService', () => {
           provide: LoggerService,
           useValue: { debug: jest.fn() },
         },
+        {
+          provide: CacheService,
+          useValue: createTestCacheService(),
+        },
       ],
     }).compile();
 
@@ -96,11 +102,28 @@ describe('NotificationService', () => {
     findMany.mockResolvedValue([record]);
 
     await expect(service.listForUser('user-1')).resolves.toEqual([record]);
+    await expect(service.listForUser('user-1')).resolves.toEqual([record]);
+    expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
       orderBy: { createdAt: 'desc' },
       select: expect.any(Object),
     });
+  });
+
+  it('invalidates notification cache after create', async () => {
+    findMany.mockResolvedValue([record]);
+    create.mockResolvedValue(record);
+
+    await service.listForUser('user-1');
+    await service.createForUser('user-1', {
+      type: NotificationType.ALERT,
+      title: record.title,
+      body: record.body,
+    });
+    await service.listForUser('user-1');
+
+    expect(findMany).toHaveBeenCalledTimes(2);
   });
 
   it('lists only unread notifications', async () => {
@@ -118,9 +141,19 @@ describe('NotificationService', () => {
     count.mockResolvedValue(3);
 
     await expect(service.unreadCount('user-1')).resolves.toBe(3);
+    await expect(service.unreadCount('user-1')).resolves.toBe(3);
+    expect(count).toHaveBeenCalledTimes(1);
     expect(count).toHaveBeenCalledWith({
       where: { userId: 'user-1', readAt: null },
     });
+  });
+
+  it('caches an unread count of zero', async () => {
+    count.mockResolvedValue(0);
+
+    await expect(service.unreadCount('user-1')).resolves.toBe(0);
+    await expect(service.unreadCount('user-1')).resolves.toBe(0);
+    expect(count).toHaveBeenCalledTimes(1);
   });
 
   it('marks an unread notification as read', async () => {

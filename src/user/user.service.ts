@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache.keys';
 import { PublicUser } from './public-user';
 
 const publicUserSelect = {
@@ -16,7 +18,10 @@ const publicUserSelect = {
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   findByEmail(email: string): Promise<{
     id: string;
@@ -31,16 +36,22 @@ export class UserService {
   }
 
   async findPublicById(id: string): Promise<PublicUser> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: publicUserSelect,
-    });
+    return this.cache.wrap(
+      CacheKeys.userPublic(id),
+      async () => {
+        const user = await this.prisma.user.findUnique({
+          where: { id },
+          select: publicUserSelect,
+        });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
 
-    return user;
+        return user;
+      },
+      this.cache.userTtlMs,
+    );
   }
 
   async create(data: {

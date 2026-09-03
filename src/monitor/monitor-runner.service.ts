@@ -3,6 +3,8 @@ import { LoggerService } from '../logger/logger.service';
 import { NotificationType } from '../notification/notification-type';
 import { NotificationService } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheKeys } from '../cache/cache.keys';
 import { isMonitorDue, parseMonitorConfig } from './monitor-config';
 import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorStatus } from './monitor-status';
@@ -51,6 +53,7 @@ export class MonitorRunnerService {
     private readonly probe: MonitorProbeService,
     private readonly notifications: NotificationService,
     private readonly logger: LoggerService,
+    private readonly cache: CacheService,
   ) {}
 
   async checkDue(): Promise<void> {
@@ -103,6 +106,7 @@ export class MonitorRunnerService {
         },
         select: monitorSelect,
       });
+      this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(monitor.userId));
 
       await this.notifyStatusChange(
         monitor.userId,

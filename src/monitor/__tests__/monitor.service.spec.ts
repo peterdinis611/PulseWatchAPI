@@ -3,6 +3,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MonitorRunnerService } from '../monitor-runner.service';
 import { MonitorService } from '../monitor.service';
+import { CacheService } from '../../cache/cache.service';
+import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
 
@@ -57,6 +59,10 @@ describe('MonitorService', () => {
           provide: MonitorRunnerService,
           useValue: { run },
         },
+        {
+          provide: CacheService,
+          useValue: createTestCacheService(),
+        },
       ],
     }).compile();
 
@@ -99,11 +105,28 @@ describe('MonitorService', () => {
     findMany.mockResolvedValue([row]);
 
     await expect(service.listForUser('user-1')).resolves.toHaveLength(1);
+    await expect(service.listForUser('user-1')).resolves.toHaveLength(1);
+    expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
       orderBy: { createdAt: 'desc' },
       select: expect.any(Object),
     });
+  });
+
+  it('invalidates monitor cache after create', async () => {
+    findMany.mockResolvedValue([]);
+    create.mockResolvedValue(row);
+
+    await service.listForUser('user-1');
+    await service.createForUser('user-1', {
+      name: 'API',
+      type: MonitorType.HTTP,
+      http: { url: 'https://example.com/health' },
+    });
+    findMany.mockResolvedValue([row]);
+    await expect(service.listForUser('user-1')).resolves.toHaveLength(1);
+    expect(findMany).toHaveBeenCalledTimes(2);
   });
 
   it('throws when a monitor is missing', async () => {
