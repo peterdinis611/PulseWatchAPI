@@ -40,9 +40,15 @@ describe('formatProbeError', () => {
     timeout.name = 'TimeoutError';
     expect(formatProbeError(timeout)).toBe('Request timed out');
 
-    const refused = new Error('connect ECONNREFUSED') as NodeJS.ErrnoException;
-    refused.code = 'ECONNREFUSED';
-    expect(formatProbeError(refused)).toBe('Connection refused');
+    const tcp = Object.assign(new Error('connect ECONNREFUSED'), {
+      code: 'ECONNREFUSED',
+    }) as NodeJS.ErrnoException;
+    expect(formatProbeError(tcp)).toBe('Connection refused');
+
+    const missing = Object.assign(new Error('query ENODATA'), {
+      code: 'ENODATA',
+    }) as NodeJS.ErrnoException;
+    expect(formatProbeError(missing)).toBe('DNS record was not found');
 
     const tls = new Error('self signed') as NodeJS.ErrnoException;
     tls.code = 'DEPTH_ZERO_SELF_SIGNED_CERT';

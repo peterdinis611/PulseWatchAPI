@@ -27,6 +27,8 @@
   "dependencies": {
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@nestjs/apollo": "^13.4.5",
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^11.0.1",
@@ -47,6 +49,7 @@
     "graphql": "^16.14.2",
     "graphql-subscriptions": "^3.0.0",
     "graphql-ws": "^6.2.1",
+    "kafkajs": "^2.2.4",
     "mysql2": "^3.24.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

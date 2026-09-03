@@ -21,11 +21,11 @@ describe('validateMonitorTypeConfig', () => {
     ).toBe('HTTP monitors cannot include redis config');
   });
 
-  it('allows a matching SSL config', () => {
+  it('allows a matching gRPC config', () => {
     expect(
       validateMonitorTypeConfig(
-        MonitorType.SSL,
-        { ssl: { host: 'example.com', port: 443 } },
+        MonitorType.GRPC,
+        { grpc: { host: '127.0.0.1', port: 50051 } },
         true,
       ),
     ).toBeNull();

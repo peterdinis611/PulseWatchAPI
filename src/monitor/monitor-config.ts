@@ -7,6 +7,14 @@ export type MonitorConfigValue = {
   serverName?: string;
   minDaysUntilExpiry?: number;
   allowUnauthorized?: boolean;
+  recordType?: string;
+  expectedValue?: string;
+  nameserver?: string;
+  secure?: boolean;
+  startTls?: boolean;
+  tls?: boolean;
+  topic?: string;
+  service?: string;
 };
 
 export function parseMonitorConfig(raw: string): MonitorConfigValue {
@@ -89,6 +97,9 @@ function mapKnownError(error: unknown): string | undefined {
   }
   if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
     return 'Host could not be resolved';
+  }
+  if (code === 'ENODATA' || code === 'ETIME') {
+    return 'DNS record was not found';
   }
   if (code === 'ECONNREFUSED') {
     return 'Connection refused';

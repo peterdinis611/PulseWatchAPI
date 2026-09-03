@@ -9,11 +9,15 @@ type AuthPayload {
 
 input CreateMonitorInput {
   database: DatabaseMonitorConfigInput
+  dns: DnsMonitorConfigInput
   enabled: Boolean
+  grpc: GrpcMonitorConfigInput
   http: HttpMonitorConfigInput
   intervalSec: Int
+  kafka: KafkaMonitorConfigInput
   name: String!
   redis: RedisMonitorConfigInput
+  smtp: SmtpMonitorConfigInput
   ssl: SslMonitorConfigInput
   tcp: TcpMonitorConfigInput
   timeoutMs: Int
@@ -30,6 +34,41 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input DnsMonitorConfigInput {
+  """Require this value to appear in the response"""
+  expectedValue: String
+
+  """Hostname to resolve"""
+  host: String!
+
+  """Optional DNS server IP (IPv4 or IPv6)"""
+  nameserver: String
+  recordType: DnsRecordType
+}
+
+"""DNS record to resolve"""
+enum DnsRecordType {
+  A
+  AAAA
+  CNAME
+  MX
+  NS
+  TXT
+}
+
+input GrpcMonitorConfigInput {
+  """Skip TLS certificate verification"""
+  allowUnauthorized: Boolean
+  host: String!
+  port: Int!
+
+  """grpc.health.v1 service name; empty checks the whole server"""
+  service: String
+
+  """Use TLS credentials (insecure plaintext by default)"""
+  tls: Boolean
+}
+
 type HealthPayload {
   database: String!
   status: String!
@@ -40,6 +79,17 @@ input HttpMonitorConfigInput {
   expectedStatus: Int
   method: String
   url: String!
+}
+
+input KafkaMonitorConfigInput {
+  host: String!
+  port: Int!
+
+  """Connect with TLS"""
+  tls: Boolean
+
+  """Fail when this topic is missing"""
+  topic: String
 }
 
 input LoginInput {
@@ -66,11 +116,19 @@ type Monitor {
 type MonitorConfig {
   allowUnauthorized: Boolean
   expectedStatus: Int
+  expectedValue: String
   host: String
   method: String
   minDaysUntilExpiry: Int
+  nameserver: String
   port: Int
+  recordType: String
+  secure: Boolean
   serverName: String
+  service: String
+  startTls: Boolean
+  tls: Boolean
+  topic: String
   url: String
 }
 
@@ -84,8 +142,12 @@ enum MonitorStatus {
 """What PulseWatch should probe"""
 enum MonitorType {
   DATABASE
+  DNS
+  GRPC
   HTTP
+  KAFKA
   REDIS
+  SMTP
   SSL
   TCP
 }
@@ -164,6 +226,19 @@ input RegisterInput {
   password: String!
 }
 
+input SmtpMonitorConfigInput {
+  """Skip TLS certificate verification"""
+  allowUnauthorized: Boolean
+  host: String!
+  port: Int!
+
+  """Use implicit TLS (typically port 465)"""
+  secure: Boolean
+
+  """Upgrade with STARTTLS after EHLO (typically port 587)"""
+  startTls: Boolean
+}
+
 input SslMonitorConfigInput {
   """Skip certificate verification (self-signed lab certs)"""
   allowUnauthorized: Boolean
@@ -192,11 +267,15 @@ input TcpMonitorConfigInput {
 
 input UpdateMonitorInput {
   database: DatabaseMonitorConfigInput
+  dns: DnsMonitorConfigInput
   enabled: Boolean
+  grpc: GrpcMonitorConfigInput
   http: HttpMonitorConfigInput
   intervalSec: Int
+  kafka: KafkaMonitorConfigInput
   name: String
   redis: RedisMonitorConfigInput
+  smtp: SmtpMonitorConfigInput
   ssl: SslMonitorConfigInput
   tcp: TcpMonitorConfigInput
   timeoutMs: Int

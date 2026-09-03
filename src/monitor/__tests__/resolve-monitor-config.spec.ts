@@ -52,6 +52,77 @@ describe('resolveMonitorConfig', () => {
     });
   });
 
+  it('builds DNS, SMTP, Kafka and gRPC configs', () => {
+    expect(
+      resolveMonitorConfig(MonitorType.DNS, {
+        dns: { host: 'example.com', recordType: 'MX', expectedValue: 'mail' },
+      }),
+    ).toEqual({
+      host: 'example.com',
+      recordType: 'MX',
+      expectedValue: 'mail',
+    });
+
+    expect(
+      resolveMonitorConfig(MonitorType.SMTP, {
+        smtp: { host: 'smtp.example.com', port: 587, startTls: true },
+      }),
+    ).toEqual({
+      host: 'smtp.example.com',
+      port: 587,
+      secure: false,
+      startTls: true,
+      allowUnauthorized: false,
+    });
+
+    expect(
+      resolveMonitorConfig(MonitorType.KAFKA, {
+        kafka: {
+          host: 'kafka.internal',
+          port: 9092,
+          topic: 'events',
+          tls: true,
+        },
+      }),
+    ).toEqual({
+      host: 'kafka.internal',
+      port: 9092,
+      tls: true,
+      topic: 'events',
+    });
+
+    expect(
+      resolveMonitorConfig(MonitorType.GRPC, {
+        grpc: { host: 'api.internal', port: 50051, service: 'pulse.v1.Api' },
+      }),
+    ).toEqual({
+      host: 'api.internal',
+      port: 50051,
+      tls: false,
+      service: 'pulse.v1.Api',
+      allowUnauthorized: false,
+    });
+  });
+
+  it('rejects SMTP secure+STARTTLS and a hostname nameserver', () => {
+    expect(() =>
+      resolveMonitorConfig(MonitorType.SMTP, {
+        smtp: {
+          host: 'smtp.example.com',
+          port: 465,
+          secure: true,
+          startTls: true,
+        },
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      resolveMonitorConfig(MonitorType.DNS, {
+        dns: { host: 'example.com', nameserver: 'dns.example.com' },
+      }),
+    ).toThrow(BadRequestException);
+  });
+
   it('rejects extra config, empty SQLite paths and invalid TCP hosts', () => {
     expect(() =>
       resolveMonitorConfig(MonitorType.HTTP, {

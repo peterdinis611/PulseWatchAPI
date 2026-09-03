@@ -21,12 +21,16 @@ import {
   MIN_INTERVAL_SEC,
   MIN_TIMEOUT_MS,
 } from '../monitor.constants';
-import { MonitorType } from '../monitor-type';
+import { MonitorType, MONITOR_TYPE_ENUM_MESSAGE } from '../monitor-type';
 import { MonitorUpdateConfigConstraint } from '../validation/monitor-type-config.constraint';
 import {
   DatabaseMonitorConfigInput,
+  DnsMonitorConfigInput,
+  GrpcMonitorConfigInput,
   HttpMonitorConfigInput,
+  KafkaMonitorConfigInput,
   RedisMonitorConfigInput,
+  SmtpMonitorConfigInput,
   SslMonitorConfigInput,
   TcpMonitorConfigInput,
 } from './monitor-config.input';
@@ -44,7 +48,7 @@ export class UpdateMonitorInput {
   @Field(() => MonitorType, { nullable: true })
   @IsOptional()
   @IsEnum(MonitorType, {
-    message: 'type must be HTTP, REDIS, DATABASE, TCP, or SSL',
+    message: MONITOR_TYPE_ENUM_MESSAGE,
   })
   type?: MonitorType;
 
@@ -101,4 +105,32 @@ export class UpdateMonitorInput {
   @ValidateNested()
   @Type(() => SslMonitorConfigInput)
   ssl?: SslMonitorConfigInput;
+
+  @Field(() => DnsMonitorConfigInput, { nullable: true })
+  @IsOptional()
+  @Validate(MonitorUpdateConfigConstraint)
+  @ValidateNested()
+  @Type(() => DnsMonitorConfigInput)
+  dns?: DnsMonitorConfigInput;
+
+  @Field(() => SmtpMonitorConfigInput, { nullable: true })
+  @IsOptional()
+  @Validate(MonitorUpdateConfigConstraint)
+  @ValidateNested()
+  @Type(() => SmtpMonitorConfigInput)
+  smtp?: SmtpMonitorConfigInput;
+
+  @Field(() => KafkaMonitorConfigInput, { nullable: true })
+  @IsOptional()
+  @Validate(MonitorUpdateConfigConstraint)
+  @ValidateNested()
+  @Type(() => KafkaMonitorConfigInput)
+  kafka?: KafkaMonitorConfigInput;
+
+  @Field(() => GrpcMonitorConfigInput, { nullable: true })
+  @IsOptional()
+  @Validate(MonitorUpdateConfigConstraint)
+  @ValidateNested()
+  @Type(() => GrpcMonitorConfigInput)
+  grpc?: GrpcMonitorConfigInput;
 }

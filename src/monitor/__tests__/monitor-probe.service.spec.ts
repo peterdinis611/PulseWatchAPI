@@ -1,3 +1,4 @@
+import { Resolver } from 'node:dns/promises';
 import { createServer as createTcpServer, Server } from 'node:net';
 import { createServer as createTlsServer, Server as TlsServer } from 'node:tls';
 import { execFileSync } from 'node:child_process';
@@ -159,11 +160,85 @@ describe('MonitorProbeService', () => {
       await close(server);
     }
   });
+
+  it('marks DNS as up when records include the expected value', async () => {
+    const spy = jest
+      .spyOn(Resolver.prototype, 'resolve4')
+      .mockResolvedValue(['93.184.216.34']);
+
+    try {
+      const result = await probe.probe(
+        MonitorType.DNS,
+        {
+          host: 'example.com',
+          recordType: 'A',
+          expectedValue: '93.184.216.34',
+        },
+        1000,
+      );
+      expect(result.status).toBe(MonitorStatus.UP);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('marks SMTP as up after a 220 greeting and EHLO', async () => {
+    const server = await listenSmtp();
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const result = await probe.probe(
+        MonitorType.SMTP,
+        { host: '127.0.0.1', port },
+        2000,
+      );
+      expect(result.status).toBe(MonitorStatus.UP);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('marks Kafka as down when the broker is unreachable', async () => {
+    const result = await probe.probe(
+      MonitorType.KAFKA,
+      { host: '127.0.0.1', port: 1 },
+      1000,
+    );
+    expect(result.status).toBe(MonitorStatus.DOWN);
+  });
+
+  it('marks gRPC as down when nothing is listening', async () => {
+    const result = await probe.probe(
+      MonitorType.GRPC,
+      { host: '127.0.0.1', port: 1 },
+      1000,
+    );
+    expect(result.status).toBe(MonitorStatus.DOWN);
+  });
 });
 
 function listen(): Promise<Server> {
   return new Promise((resolve, reject) => {
     const server = createTcpServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
+
+function listenSmtp(): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = createTcpServer((socket) => {
+      socket.write('220 pulsewatch.test ESMTP\r\n');
+      socket.on('data', (chunk: Buffer) => {
+        const text = chunk.toString('utf8');
+        if (text.startsWith('EHLO') || text.startsWith('HELO')) {
+          socket.write('250 hello\r\n');
+        } else if (text.startsWith('QUIT')) {
+          socket.write('221 bye\r\n');
+          socket.end();
+        }
+      });
+    });
     server.once('error', reject);
     server.listen(0, '127.0.0.1', () => resolve(server));
   });

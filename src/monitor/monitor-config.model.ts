@@ -25,4 +25,28 @@ export class MonitorConfig {
 
   @Field({ nullable: true })
   allowUnauthorized?: boolean;
+
+  @Field({ nullable: true })
+  recordType?: string;
+
+  @Field({ nullable: true })
+  expectedValue?: string;
+
+  @Field({ nullable: true })
+  nameserver?: string;
+
+  @Field({ nullable: true })
+  secure?: boolean;
+
+  @Field({ nullable: true })
+  startTls?: boolean;
+
+  @Field({ nullable: true })
+  tls?: boolean;
+
+  @Field({ nullable: true })
+  topic?: string;
+
+  @Field({ nullable: true })
+  service?: string;
 }

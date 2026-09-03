@@ -333,6 +333,86 @@ describe('Monitors (e2e)', () => {
     );
     expect(sslCheck.data?.runMonitorCheck.lastStatus).toBe('DOWN');
 
+    const dns = await gql<{ createMonitor: MonitorBody }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { id type }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: {
+          input: {
+            name: 'Localhost DNS',
+            type: 'DNS',
+            dns: { host: 'localhost', recordType: 'A' },
+          },
+        },
+      },
+    );
+    expect(dns.data?.createMonitor.type).toBe('DNS');
+
+    const smtp = await gql<{ createMonitor: MonitorBody }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { id type }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: {
+          input: {
+            name: 'Mail',
+            type: 'SMTP',
+            smtp: { host: '127.0.0.1', port: 1 },
+          },
+        },
+      },
+    );
+    expect(smtp.data?.createMonitor.type).toBe('SMTP');
+
+    const kafka = await gql<{ createMonitor: MonitorBody }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { id type }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: {
+          input: {
+            name: 'Events',
+            type: 'KAFKA',
+            kafka: { host: '127.0.0.1', port: 1, topic: 'events' },
+          },
+        },
+      },
+    );
+    expect(kafka.data?.createMonitor.type).toBe('KAFKA');
+
+    const grpc = await gql<{ createMonitor: MonitorBody }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { id type }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: {
+          input: {
+            name: 'API grpc',
+            type: 'GRPC',
+            grpc: { host: '127.0.0.1', port: 1 },
+          },
+        },
+      },
+    );
+    expect(grpc.data?.createMonitor.type).toBe('GRPC');
+
     const db = await gql<{ createMonitor: MonitorBody }>(
       app,
       `

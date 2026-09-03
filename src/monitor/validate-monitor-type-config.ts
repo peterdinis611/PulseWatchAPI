@@ -6,6 +6,10 @@ export const MONITOR_CONFIG_FIELDS = [
   'database',
   'tcp',
   'ssl',
+  'dns',
+  'smtp',
+  'kafka',
+  'grpc',
 ] as const;
 
 export type MonitorConfigField = (typeof MONITOR_CONFIG_FIELDS)[number];
@@ -24,6 +28,14 @@ export function configFieldForType(type: MonitorType): MonitorConfigField {
       return 'tcp';
     case MonitorType.SSL:
       return 'ssl';
+    case MonitorType.DNS:
+      return 'dns';
+    case MonitorType.SMTP:
+      return 'smtp';
+    case MonitorType.KAFKA:
+      return 'kafka';
+    case MonitorType.GRPC:
+      return 'grpc';
     default:
       return 'http';
   }
@@ -44,7 +56,7 @@ export function validateMonitorTypeConfig(
 
   if (!type) {
     if (present.length > 1) {
-      return 'Only one of http, redis, database, tcp, or ssl config can be set';
+      return configChoiceMessage();
     }
     return null;
   }
@@ -61,4 +73,10 @@ export function validateMonitorTypeConfig(
   }
 
   return null;
+}
+
+function configChoiceMessage(): string {
+  const fields = [...MONITOR_CONFIG_FIELDS];
+  const last = fields.pop();
+  return `Only one of ${fields.join(', ')}, or ${last} config can be set`;
 }

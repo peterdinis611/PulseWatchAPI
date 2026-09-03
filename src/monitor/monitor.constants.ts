@@ -10,5 +10,8 @@ export const MAX_URL_LENGTH = 2048;
 export const MONITOR_USER_AGENT = 'PulseWatch/0.0.1';
 export const HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT'] as const;
 export const MAX_CERT_EXPIRY_DAYS = 365;
+export const MAX_KAFKA_TOPIC_LENGTH = 249;
+export const MAX_GRPC_SERVICE_LENGTH = 200;
+export const MAX_EXPECTED_VALUE_LENGTH = 255;
 
 export type HttpMethod = (typeof HTTP_METHODS)[number];

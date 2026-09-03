@@ -21,6 +21,10 @@ enum MonitorType {
   DATABASE
   TCP
   SSL
+  DNS
+  SMTP
+  KAFKA
+  GRPC
 }
 
 enum MonitorStatus {

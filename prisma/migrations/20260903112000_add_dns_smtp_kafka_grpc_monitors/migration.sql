@@ -1,0 +1,1 @@
+-- MonitorType now includes DNS, SMTP, KAFKA and GRPC. SQLite stores the enum as TEXT.

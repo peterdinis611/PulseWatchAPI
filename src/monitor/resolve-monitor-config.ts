@@ -1,9 +1,13 @@
+import { isIP } from 'node:net';
 import { BadRequestException } from '@nestjs/common';
 import { CreateMonitorInput } from './dto/create-monitor.input';
+import { DNS_RECORD_TYPES, DnsRecordType } from './dns-record-type';
 import { isValidTcpHost } from './is-valid-tcp-host';
 import {
   HTTP_METHODS,
   MAX_CERT_EXPIRY_DAYS,
+  MAX_GRPC_SERVICE_LENGTH,
+  MAX_KAFKA_TOPIC_LENGTH,
   type HttpMethod,
 } from './monitor.constants';
 import { MonitorConfigValue } from './monitor-config';
@@ -13,12 +17,22 @@ import {
   validateMonitorTypeConfig,
 } from './validate-monitor-type-config';
 
+type MonitorConfigInputs = Pick<
+  CreateMonitorInput,
+  | 'http'
+  | 'redis'
+  | 'database'
+  | 'tcp'
+  | 'ssl'
+  | 'dns'
+  | 'smtp'
+  | 'kafka'
+  | 'grpc'
+>;
+
 export function resolveMonitorConfig(
   type: MonitorType,
-  input: Pick<
-    CreateMonitorInput,
-    'http' | 'redis' | 'database' | 'tcp' | 'ssl'
-  >,
+  input: MonitorConfigInputs,
   required = true,
 ): MonitorConfigValue {
   const mismatch = validateMonitorTypeConfig(type, input, required);
@@ -37,6 +51,14 @@ export function resolveMonitorConfig(
       return resolveTcp(input.tcp);
     case MonitorType.SSL:
       return resolveSsl(input.ssl);
+    case MonitorType.DNS:
+      return resolveDns(input.dns);
+    case MonitorType.SMTP:
+      return resolveSmtp(input.smtp);
+    case MonitorType.KAFKA:
+      return resolveKafka(input.kafka);
+    case MonitorType.GRPC:
+      return resolveGrpc(input.grpc);
     default:
       throw new BadRequestException('Unsupported monitor type');
   }
@@ -165,10 +187,93 @@ function resolveSsl(input: CreateMonitorInput['ssl']): MonitorConfigValue {
   };
 }
 
+function resolveDns(input: CreateMonitorInput['dns']): MonitorConfigValue {
+  if (!input?.host) {
+    throw new BadRequestException('dns config is required for DNS monitors');
+  }
+
+  const host = input.host.trim();
+  if (!isValidTcpHost(host)) {
+    throw new BadRequestException('DNS host must be a hostname or IP address');
+  }
+
+  const recordType = (input.recordType ?? DnsRecordType.A).toUpperCase();
+  if (!DNS_RECORD_TYPES.includes(recordType as DnsRecordType)) {
+    throw new BadRequestException(
+      'DNS recordType must be A, AAAA, CNAME, MX, TXT, or NS',
+    );
+  }
+
+  const nameserver = input.nameserver?.trim();
+  if (nameserver && !isIP(nameserver)) {
+    throw new BadRequestException(
+      'DNS nameserver must be an IPv4 or IPv6 address',
+    );
+  }
+
+  const expectedValue = input.expectedValue?.trim();
+  return {
+    host,
+    recordType,
+    ...(expectedValue ? { expectedValue } : {}),
+    ...(nameserver ? { nameserver } : {}),
+  };
+}
+
+function resolveSmtp(input: CreateMonitorInput['smtp']): MonitorConfigValue {
+  const base = resolveHostPort(input, 'SMTP', 'smtp');
+  const secure = input?.secure ?? false;
+  const startTls = input?.startTls ?? false;
+  if (secure && startTls) {
+    throw new BadRequestException(
+      'SMTP secure and startTls cannot both be enabled',
+    );
+  }
+
+  return {
+    ...base,
+    secure,
+    startTls,
+    allowUnauthorized: input?.allowUnauthorized ?? false,
+  };
+}
+
+function resolveKafka(input: CreateMonitorInput['kafka']): MonitorConfigValue {
+  const base = resolveHostPort(input, 'KAFKA', 'kafka');
+  const topic = input?.topic?.trim();
+  if (
+    topic &&
+    (topic.length > MAX_KAFKA_TOPIC_LENGTH || !/^[a-z0-9._-]+$/i.test(topic))
+  ) {
+    throw new BadRequestException('Kafka topic is invalid');
+  }
+
+  return {
+    ...base,
+    tls: input?.tls ?? false,
+    ...(topic ? { topic } : {}),
+  };
+}
+
+function resolveGrpc(input: CreateMonitorInput['grpc']): MonitorConfigValue {
+  const base = resolveHostPort(input, 'GRPC', 'grpc');
+  const service = input?.service?.trim() ?? '';
+  if (service.length > MAX_GRPC_SERVICE_LENGTH) {
+    throw new BadRequestException('gRPC service name is too long');
+  }
+
+  return {
+    ...base,
+    tls: input?.tls ?? false,
+    service,
+    allowUnauthorized: input?.allowUnauthorized ?? false,
+  };
+}
+
 function resolveHostPort(
   input: { host?: string; port?: number } | undefined,
-  label: 'TCP' | 'SSL',
-  field: 'tcp' | 'ssl',
+  label: string,
+  field: string,
 ): { host: string; port: number } {
   if (!input?.host || input.port == null) {
     throw new BadRequestException(
@@ -201,11 +306,6 @@ function parseAbsoluteUrl(value: string, message: string): URL {
   }
 }
 
-export function hasMonitorConfigUpdate(
-  input: Pick<
-    CreateMonitorInput,
-    'http' | 'redis' | 'database' | 'tcp' | 'ssl'
-  >,
-): boolean {
+export function hasMonitorConfigUpdate(input: MonitorConfigInputs): boolean {
   return presentConfigFields(input).length > 0;
 }
