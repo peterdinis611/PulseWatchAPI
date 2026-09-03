@@ -21,11 +21,11 @@ describe('validateMonitorTypeConfig', () => {
     ).toBe('HTTP monitors cannot include redis config');
   });
 
-  it('allows a matching config', () => {
+  it('allows a matching SSL config', () => {
     expect(
       validateMonitorTypeConfig(
-        MonitorType.TCP,
-        { tcp: { host: '127.0.0.1', port: 80 } },
+        MonitorType.SSL,
+        { ssl: { host: 'example.com', port: 443 } },
         true,
       ),
     ).toBeNull();

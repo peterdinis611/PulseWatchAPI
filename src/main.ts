@@ -1,3 +1,4 @@
+import './load-env';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigService } from '@nestjs/config';

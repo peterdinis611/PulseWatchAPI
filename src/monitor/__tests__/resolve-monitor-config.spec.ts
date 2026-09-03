@@ -39,6 +39,17 @@ describe('resolveMonitorConfig', () => {
         tcp: { host: '127.0.0.1', port: 4000 },
       }),
     ).toEqual({ host: '127.0.0.1', port: 4000 });
+
+    expect(
+      resolveMonitorConfig(MonitorType.SSL, {
+        ssl: { host: 'example.com', port: 443 },
+      }),
+    ).toEqual({
+      host: 'example.com',
+      port: 443,
+      minDaysUntilExpiry: 0,
+      allowUnauthorized: false,
+    });
   });
 
   it('rejects extra config, empty SQLite paths and invalid TCP hosts', () => {
@@ -60,5 +71,25 @@ describe('resolveMonitorConfig', () => {
         tcp: { host: 'example.com:80', port: 80 },
       }),
     ).toThrow(BadRequestException);
+  });
+
+  it('builds an SSL config with SNI and expiry floor', () => {
+    expect(
+      resolveMonitorConfig(MonitorType.SSL, {
+        ssl: {
+          host: '127.0.0.1',
+          port: 443,
+          serverName: 'api.example.com',
+          minDaysUntilExpiry: 14,
+          allowUnauthorized: true,
+        },
+      }),
+    ).toEqual({
+      host: '127.0.0.1',
+      port: 443,
+      serverName: 'api.example.com',
+      minDaysUntilExpiry: 14,
+      allowUnauthorized: true,
+    });
   });
 });

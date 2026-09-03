@@ -1,7 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { isValidTcpHost } from './is-valid-tcp-host';
-import { HTTP_METHODS, type HttpMethod } from './monitor.constants';
+import {
+  HTTP_METHODS,
+  MAX_CERT_EXPIRY_DAYS,
+  type HttpMethod,
+} from './monitor.constants';
 import { MonitorConfigValue } from './monitor-config';
 import { MonitorType } from './monitor-type';
 import {
@@ -11,7 +15,10 @@ import {
 
 export function resolveMonitorConfig(
   type: MonitorType,
-  input: Pick<CreateMonitorInput, 'http' | 'redis' | 'database' | 'tcp'>,
+  input: Pick<
+    CreateMonitorInput,
+    'http' | 'redis' | 'database' | 'tcp' | 'ssl'
+  >,
   required = true,
 ): MonitorConfigValue {
   const mismatch = validateMonitorTypeConfig(type, input, required);
@@ -28,6 +35,8 @@ export function resolveMonitorConfig(
       return resolveDatabase(input.database);
     case MonitorType.TCP:
       return resolveTcp(input.tcp);
+    case MonitorType.SSL:
+      return resolveSsl(input.ssl);
     default:
       throw new BadRequestException('Unsupported monitor type');
   }
@@ -125,17 +134,57 @@ function resolveDatabase(
 }
 
 function resolveTcp(input: CreateMonitorInput['tcp']): MonitorConfigValue {
+  return resolveHostPort(input, 'TCP', 'tcp');
+}
+
+function resolveSsl(input: CreateMonitorInput['ssl']): MonitorConfigValue {
+  const base = resolveHostPort(input, 'SSL', 'ssl');
+  const serverName = input?.serverName?.trim();
+  if (serverName && !isValidTcpHost(serverName)) {
+    throw new BadRequestException(
+      'SSL serverName must be a hostname or IP address',
+    );
+  }
+
+  const minDaysUntilExpiry = input?.minDaysUntilExpiry ?? 0;
+  if (
+    !Number.isInteger(minDaysUntilExpiry) ||
+    minDaysUntilExpiry < 0 ||
+    minDaysUntilExpiry > MAX_CERT_EXPIRY_DAYS
+  ) {
+    throw new BadRequestException(
+      `SSL minDaysUntilExpiry must be between 0 and ${MAX_CERT_EXPIRY_DAYS}`,
+    );
+  }
+
+  return {
+    ...base,
+    ...(serverName ? { serverName } : {}),
+    minDaysUntilExpiry,
+    allowUnauthorized: input?.allowUnauthorized ?? false,
+  };
+}
+
+function resolveHostPort(
+  input: { host?: string; port?: number } | undefined,
+  label: 'TCP' | 'SSL',
+  field: 'tcp' | 'ssl',
+): { host: string; port: number } {
   if (!input?.host || input.port == null) {
-    throw new BadRequestException('tcp config is required for TCP monitors');
+    throw new BadRequestException(
+      `${field} config is required for ${label} monitors`,
+    );
   }
 
   const host = input.host.trim();
   if (!isValidTcpHost(host)) {
-    throw new BadRequestException('TCP host must be a hostname or IP address');
+    throw new BadRequestException(
+      `${label} host must be a hostname or IP address`,
+    );
   }
 
   if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
-    throw new BadRequestException('TCP port must be between 1 and 65535');
+    throw new BadRequestException(`${label} port must be between 1 and 65535`);
   }
 
   return {
@@ -153,7 +202,10 @@ function parseAbsoluteUrl(value: string, message: string): URL {
 }
 
 export function hasMonitorConfigUpdate(
-  input: Pick<CreateMonitorInput, 'http' | 'redis' | 'database' | 'tcp'>,
+  input: Pick<
+    CreateMonitorInput,
+    'http' | 'redis' | 'database' | 'tcp' | 'ssl'
+  >,
 ): boolean {
   return presentConfigFields(input).length > 0;
 }

@@ -11,6 +11,7 @@ import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PubSubModule } from '../pubsub/pubsub.module';
 import { CacheModule } from '../cache/cache.module';
+import { JobsModule } from '../jobs/jobs.module';
 import { NotificationModule } from '../notification/notification.module';
 import { MonitorModule } from '../monitor/monitor.module';
 import { UserModule } from '../user/user.module';
@@ -41,6 +42,7 @@ import { AppController } from './app.controller';
     LoggerModule,
     PubSubModule,
     CacheModule,
+    JobsModule,
     HealthModule,
     UserModule,
     AuthModule,

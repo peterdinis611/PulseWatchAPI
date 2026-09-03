@@ -296,6 +296,43 @@ describe('Monitors (e2e)', () => {
     );
     expect(tcpCheck.data?.runMonitorCheck.lastStatus).toBe('UP');
 
+    const ssl = await gql<{ createMonitor: MonitorBody }>(
+      app,
+      `
+        mutation Create($input: CreateMonitorInput!) {
+          createMonitor(input: $input) { id type config { host port } }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: {
+          input: {
+            name: 'TLS endpoint',
+            type: 'SSL',
+            ssl: { host: '127.0.0.1', port: 1 },
+          },
+        },
+      },
+    );
+    expect(ssl.data?.createMonitor.type).toBe('SSL');
+    expect(ssl.data?.createMonitor.config).toEqual(
+      expect.objectContaining({ host: '127.0.0.1', port: 1 }),
+    );
+
+    const sslCheck = await gql<{ runMonitorCheck: MonitorBody }>(
+      app,
+      `
+        mutation Check($id: String!) {
+          runMonitorCheck(id: $id) { lastStatus lastError }
+        }
+      `,
+      {
+        token: ada.accessToken,
+        variables: { id: ssl.data?.createMonitor.id },
+      },
+    );
+    expect(sslCheck.data?.runMonitorCheck.lastStatus).toBe('DOWN');
+
     const db = await gql<{ createMonitor: MonitorBody }>(
       app,
       `

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CacheKeys } from '../cache/cache.keys';
+import { JobsService } from '../jobs/jobs.service';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
 import {
@@ -61,6 +62,7 @@ export class MonitorService {
     private readonly prisma: PrismaService,
     private readonly runner: MonitorRunnerService,
     private readonly cache: CacheService,
+    private readonly jobs: JobsService,
   ) {}
 
   async listForUser(userId: string): Promise<MonitorView[]> {
@@ -104,6 +106,7 @@ export class MonitorService {
       select: monitorSelect,
     });
     this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
+    await this.syncJob(created);
 
     return this.toView(created);
   }
@@ -145,6 +148,7 @@ export class MonitorService {
       select: monitorSelect,
     });
     this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
+    await this.syncJob(updated);
 
     return this.toView(updated);
   }
@@ -159,6 +163,7 @@ export class MonitorService {
     }
 
     this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
+    await this.jobs.unscheduleMonitorCheck(id);
     return true;
   }
 
@@ -166,6 +171,19 @@ export class MonitorService {
     await this.requireOwned(userId, id);
     const updated = await this.runner.run(id);
     return this.toView(updated);
+  }
+
+  private async syncJob(monitor: {
+    id: string;
+    enabled: boolean;
+    intervalSec: number;
+  }): Promise<void> {
+    if (monitor.enabled) {
+      await this.jobs.scheduleMonitorCheck(monitor.id, monitor.intervalSec);
+      return;
+    }
+
+    await this.jobs.unscheduleMonitorCheck(monitor.id);
   }
 
   private async requireOwned(userId: string, id: string) {

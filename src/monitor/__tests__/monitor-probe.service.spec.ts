@@ -1,4 +1,9 @@
-import { createServer, Server } from 'node:net';
+import { createServer as createTcpServer, Server } from 'node:net';
+import { createServer as createTlsServer, Server as TlsServer } from 'node:tls';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { MonitorProbeService } from '../monitor-probe.service';
 import { MonitorStatus } from '../monitor-status';
@@ -90,18 +95,123 @@ describe('MonitorProbeService', () => {
     expect(result.status).toBe(MonitorStatus.DOWN);
     expect(result.error).toEqual(expect.any(String));
   });
+
+  it('marks SSL as up for a TLS listener with allowUnauthorized', async () => {
+    const { key, cert } = selfSigned();
+    const server = await listenTls(key, cert);
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const result = await probe.probe(
+        MonitorType.SSL,
+        {
+          host: '127.0.0.1',
+          port,
+          serverName: 'localhost',
+          allowUnauthorized: true,
+        },
+        2000,
+      );
+      expect(result.status).toBe(MonitorStatus.UP);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('marks SSL as down for a self-signed cert by default', async () => {
+    const { key, cert } = selfSigned();
+    const server = await listenTls(key, cert);
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const result = await probe.probe(
+        MonitorType.SSL,
+        { host: '127.0.0.1', port, serverName: 'localhost' },
+        2000,
+      );
+      expect(result.status).toBe(MonitorStatus.DOWN);
+      expect(result.error).toBe('TLS certificate error');
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('marks SSL as down when the certificate expires too soon', async () => {
+    const { key, cert } = selfSigned();
+    const server = await listenTls(key, cert);
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const result = await probe.probe(
+        MonitorType.SSL,
+        {
+          host: '127.0.0.1',
+          port,
+          serverName: 'localhost',
+          allowUnauthorized: true,
+          minDaysUntilExpiry: 365,
+        },
+        2000,
+      );
+      expect(result.status).toBe(MonitorStatus.DOWN);
+      expect(result.error).toMatch(/expires in \d+ days/);
+    } finally {
+      await close(server);
+    }
+  });
 });
 
 function listen(): Promise<Server> {
   return new Promise((resolve, reject) => {
-    const server = createServer();
+    const server = createTcpServer();
     server.once('error', reject);
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
 }
 
-function close(server: Server): Promise<void> {
+function listenTls(key: string, cert: string): Promise<TlsServer> {
+  return new Promise((resolve, reject) => {
+    const server = createTlsServer({ key, cert });
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
+
+function close(server: Server | TlsServer): Promise<void> {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+}
+
+function selfSigned(): { key: string; cert: string } {
+  const dir = mkdtempSync(join(tmpdir(), 'pulsewatch-ssl-'));
+  try {
+    const keyPath = join(dir, 'key.pem');
+    const certPath = join(dir, 'cert.pem');
+    execFileSync(
+      'openssl',
+      [
+        'req',
+        '-x509',
+        '-newkey',
+        'rsa:2048',
+        '-keyout',
+        keyPath,
+        '-out',
+        certPath,
+        '-days',
+        '30',
+        '-nodes',
+        '-subj',
+        '/CN=localhost',
+      ],
+      { stdio: 'pipe' },
+    );
+    return {
+      key: readFileSync(keyPath, 'utf8'),
+      cert: readFileSync(certPath, 'utf8'),
+    };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }

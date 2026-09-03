@@ -5,6 +5,8 @@ import { MonitorRunnerService } from '../monitor-runner.service';
 import { MonitorService } from '../monitor.service';
 import { CacheService } from '../../cache/cache.service';
 import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
+import { JobsService } from '../../jobs/jobs.service';
+import { createTestJobsService } from '../../jobs/__tests__/create-test-jobs';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
 
@@ -16,6 +18,7 @@ describe('MonitorService', () => {
   let update: jest.Mock;
   let deleteMany: jest.Mock;
   let run: jest.Mock;
+  let jobs: ReturnType<typeof createTestJobsService>;
 
   const row = {
     id: 'm-1',
@@ -45,6 +48,7 @@ describe('MonitorService', () => {
     update = jest.fn();
     deleteMany = jest.fn();
     run = jest.fn();
+    jobs = createTestJobsService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +66,10 @@ describe('MonitorService', () => {
         {
           provide: CacheService,
           useValue: createTestCacheService(),
+        },
+        {
+          provide: JobsService,
+          useValue: jobs,
         },
       ],
     }).compile();
@@ -90,6 +98,7 @@ describe('MonitorService', () => {
         },
       }),
     );
+    expect(jobs.scheduleMonitorCheck).toHaveBeenCalledWith('m-1', 60);
   });
 
   it('rejects HTTP create without http config', async () => {
@@ -141,6 +150,7 @@ describe('MonitorService', () => {
     deleteMany.mockResolvedValue({ count: 1 });
 
     await expect(service.deleteForUser('user-1', 'm-1')).resolves.toBe(true);
+    expect(jobs.unscheduleMonitorCheck).toHaveBeenCalledWith('m-1');
   });
 
   it('throws when deleting a missing monitor', async () => {
@@ -149,6 +159,7 @@ describe('MonitorService', () => {
     await expect(service.deleteForUser('user-1', 'm-1')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+    expect(jobs.unscheduleMonitorCheck).not.toHaveBeenCalled();
   });
 
   it('requires config when changing type', async () => {
@@ -157,6 +168,16 @@ describe('MonitorService', () => {
     await expect(
       service.updateForUser('user-1', 'm-1', { type: MonitorType.TCP }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('unschedules a monitor when it is disabled', async () => {
+    findFirst.mockResolvedValue(row);
+    update.mockResolvedValue({ ...row, enabled: false });
+
+    await service.updateForUser('user-1', 'm-1', { enabled: false });
+
+    expect(jobs.unscheduleMonitorCheck).toHaveBeenCalledWith('m-1');
+    expect(jobs.scheduleMonitorCheck).not.toHaveBeenCalled();
   });
 
   it('runs a check for an owned monitor', async () => {

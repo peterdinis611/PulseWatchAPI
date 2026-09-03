@@ -27,6 +27,7 @@ import {
   DatabaseMonitorConfigInput,
   HttpMonitorConfigInput,
   RedisMonitorConfigInput,
+  SslMonitorConfigInput,
   TcpMonitorConfigInput,
 } from './monitor-config.input';
 
@@ -41,7 +42,7 @@ export class CreateMonitorInput {
 
   @Field(() => MonitorType)
   @IsEnum(MonitorType, {
-    message: 'type must be HTTP, REDIS, DATABASE, or TCP',
+    message: 'type must be HTTP, REDIS, DATABASE, TCP, or SSL',
   })
   @Validate(MonitorCreateConfigConstraint)
   type!: MonitorType;
@@ -88,4 +89,10 @@ export class CreateMonitorInput {
   @ValidateNested()
   @Type(() => TcpMonitorConfigInput)
   tcp?: TcpMonitorConfigInput;
+
+  @Field(() => SslMonitorConfigInput, { nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SslMonitorConfigInput)
+  ssl?: SslMonitorConfigInput;
 }

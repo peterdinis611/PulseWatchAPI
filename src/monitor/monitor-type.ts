@@ -5,6 +5,7 @@ export enum MonitorType {
   REDIS = 'REDIS',
   DATABASE = 'DATABASE',
   TCP = 'TCP',
+  SSL = 'SSL',
 }
 
 registerEnumType(MonitorType, {

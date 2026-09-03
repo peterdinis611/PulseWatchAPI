@@ -44,6 +44,10 @@ describe('formatProbeError', () => {
     refused.code = 'ECONNREFUSED';
     expect(formatProbeError(refused)).toBe('Connection refused');
 
+    const tls = new Error('self signed') as NodeJS.ErrnoException;
+    tls.code = 'DEPTH_ZERO_SELF_SIGNED_CERT';
+    expect(formatProbeError(tls)).toBe('TLS certificate error');
+
     const wrapped = new Error('fetch failed');
     (wrapped as Error & { cause: NodeJS.ErrnoException }).cause = Object.assign(
       new Error('getaddrinfo ENOTFOUND'),

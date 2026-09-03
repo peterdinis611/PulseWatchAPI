@@ -16,4 +16,13 @@ export class MonitorConfig {
 
   @Field(() => Int, { nullable: true })
   port?: number;
+
+  @Field({ nullable: true })
+  serverName?: string;
+
+  @Field(() => Int, { nullable: true })
+  minDaysUntilExpiry?: number;
+
+  @Field({ nullable: true })
+  allowUnauthorized?: boolean;
 }

@@ -1,0 +1,1 @@
+-- MonitorType now includes SSL. SQLite stores the enum as TEXT, so no table rewrite is required.

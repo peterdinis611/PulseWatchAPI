@@ -20,6 +20,7 @@ enum MonitorType {
   REDIS
   DATABASE
   TCP
+  SSL
 }
 
 enum MonitorStatus {

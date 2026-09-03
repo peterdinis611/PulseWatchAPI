@@ -5,6 +5,7 @@ export const MONITOR_CONFIG_FIELDS = [
   'redis',
   'database',
   'tcp',
+  'ssl',
 ] as const;
 
 export type MonitorConfigField = (typeof MONITOR_CONFIG_FIELDS)[number];
@@ -21,6 +22,8 @@ export function configFieldForType(type: MonitorType): MonitorConfigField {
       return 'database';
     case MonitorType.TCP:
       return 'tcp';
+    case MonitorType.SSL:
+      return 'ssl';
     default:
       return 'http';
   }
@@ -41,7 +44,7 @@ export function validateMonitorTypeConfig(
 
   if (!type) {
     if (present.length > 1) {
-      return 'Only one of http, redis, database, or tcp config can be set';
+      return 'Only one of http, redis, database, tcp, or ssl config can be set';
     }
     return null;
   }

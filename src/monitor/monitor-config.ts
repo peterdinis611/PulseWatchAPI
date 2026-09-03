@@ -4,6 +4,9 @@ export type MonitorConfigValue = {
   expectedStatus?: number;
   host?: string;
   port?: number;
+  serverName?: string;
+  minDaysUntilExpiry?: number;
+  allowUnauthorized?: boolean;
 };
 
 export function parseMonitorConfig(raw: string): MonitorConfigValue {
@@ -98,7 +101,10 @@ function mapKnownError(error: unknown): string | undefined {
   }
   if (
     code === 'CERT_HAS_EXPIRED' ||
-    code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+    code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
+    code === 'DEPTH_ZERO_SELF_SIGNED_CERT' ||
+    code === 'SELF_SIGNED_CERT_IN_CHAIN' ||
+    code === 'ERR_TLS_CERT_ALTNAME_INVALID'
   ) {
     return 'TLS certificate error';
   }

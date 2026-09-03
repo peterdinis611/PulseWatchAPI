@@ -1,4 +1,5 @@
-import { connect } from 'node:net';
+import { connect as netConnect, isIP } from 'node:net';
+import { connect as tlsConnect } from 'node:tls';
 import { DatabaseSync } from 'node:sqlite';
 import { Injectable } from '@nestjs/common';
 import mysql from 'mysql2/promise';
@@ -42,6 +43,9 @@ export class MonitorProbeService {
           break;
         case MonitorType.TCP:
           await this.probeTcp(config, timeout);
+          break;
+        case MonitorType.SSL:
+          await this.probeSsl(config, timeout);
           break;
         default:
           throw new Error(`Unsupported monitor type: ${String(type)}`);
@@ -198,7 +202,7 @@ export class MonitorProbeService {
     }
 
     return new Promise((resolve, reject) => {
-      const socket = connect({ host, port });
+      const socket = netConnect({ host, port });
       let settled = false;
       const finish = (error?: Error) => {
         if (settled) {
@@ -218,6 +222,88 @@ export class MonitorProbeService {
         finish(new Error(`TCP connection to ${host}:${port} timed out`));
       });
       socket.once('connect', () => finish());
+      socket.once('error', (error) => finish(error));
+    });
+  }
+
+  private probeSsl(
+    config: MonitorConfigValue,
+    timeoutMs: number,
+  ): Promise<void> {
+    const host = config.host;
+    const port = config.port;
+    if (!host || port == null) {
+      return Promise.reject(new Error('SSL monitor is missing host or port'));
+    }
+
+    const servername =
+      config.serverName?.trim() || (isIP(host) ? undefined : host);
+    const minDaysUntilExpiry = config.minDaysUntilExpiry ?? 0;
+    const rejectUnauthorized = config.allowUnauthorized !== true;
+
+    return new Promise((resolve, reject) => {
+      const socket = tlsConnect({
+        host,
+        port,
+        servername,
+        rejectUnauthorized,
+      });
+      let settled = false;
+      const finish = (error?: Error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.removeAllListeners();
+        socket.destroy();
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      };
+
+      socket.setTimeout(timeoutMs, () => {
+        finish(new Error(`TLS connection to ${host}:${port} timed out`));
+      });
+      socket.once('secureConnect', () => {
+        if (rejectUnauthorized && !socket.authorized) {
+          finish(
+            socket.authorizationError instanceof Error
+              ? socket.authorizationError
+              : new Error('TLS certificate error'),
+          );
+          return;
+        }
+
+        const cert = socket.getPeerCertificate();
+        if (!cert || Object.keys(cert).length === 0) {
+          finish(new Error('No TLS certificate presented'));
+          return;
+        }
+
+        const validTo = cert.valid_to ? Date.parse(cert.valid_to) : Number.NaN;
+        if (!Number.isFinite(validTo)) {
+          finish(new Error('TLS certificate expiry is missing'));
+          return;
+        }
+
+        const daysLeft = (validTo - Date.now()) / 86_400_000;
+        if (daysLeft < 0) {
+          finish(new Error('TLS certificate has expired'));
+          return;
+        }
+        if (minDaysUntilExpiry > 0 && daysLeft < minDaysUntilExpiry) {
+          finish(
+            new Error(
+              `TLS certificate expires in ${Math.floor(daysLeft)} days (minimum ${minDaysUntilExpiry})`,
+            ),
+          );
+          return;
+        }
+
+        finish();
+      });
       socket.once('error', (error) => finish(error));
     });
   }

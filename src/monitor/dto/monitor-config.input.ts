@@ -1,6 +1,7 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -14,7 +15,11 @@ import {
   Validate,
 } from 'class-validator';
 import { Trim } from '../../common/trim';
-import { HTTP_METHODS, MAX_URL_LENGTH } from '../monitor.constants';
+import {
+  HTTP_METHODS,
+  MAX_CERT_EXPIRY_DAYS,
+  MAX_URL_LENGTH,
+} from '../monitor.constants';
 import { IsTcpHostConstraint } from '../validation/is-tcp-host.constraint';
 
 @InputType()
@@ -88,4 +93,52 @@ export class TcpMonitorConfigInput {
   @Min(1)
   @Max(65535)
   port!: number;
+}
+
+@InputType()
+export class SslMonitorConfigInput {
+  @Field()
+  @Trim()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(253)
+  @Validate(IsTcpHostConstraint)
+  host!: string;
+
+  @Field(() => Int)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  port!: number;
+
+  @Field({
+    nullable: true,
+    description: 'SNI hostname when it differs from host',
+  })
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(253)
+  @Validate(IsTcpHostConstraint)
+  serverName?: string;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'Fail when the certificate expires in fewer than this many days',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_CERT_EXPIRY_DAYS)
+  minDaysUntilExpiry?: number;
+
+  @Field({
+    nullable: true,
+    description: 'Skip certificate verification (self-signed lab certs)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  allowUnauthorized?: boolean;
 }

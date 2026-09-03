@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { areJobsEnabled } from '../jobs/are-jobs-enabled';
 import { LoggerService } from '../logger/logger.service';
 import { MonitorRunnerService } from './monitor-runner.service';
 
@@ -12,10 +13,10 @@ export class MonitorSchedulerService {
 
   @Cron(CronExpression.EVERY_10_SECONDS, {
     name: 'monitor-checks',
-    disabled: process.env.NODE_ENV === 'test',
+    disabled: process.env.NODE_ENV === 'test' || areJobsEnabled(),
   })
   async tick(): Promise<void> {
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' || areJobsEnabled()) {
       return;
     }
 
