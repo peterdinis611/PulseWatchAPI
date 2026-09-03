@@ -27,8 +27,31 @@ type Mutation {
   """Sign in and receive a JWT"""
   login(input: LoginInput!): AuthPayload!
 
+  """Mark every unread notification as read"""
+  markAllNotificationsRead: Int!
+
+  """Mark a notification as read"""
+  markNotificationRead(id: String!): Notification!
+
   """Create an account"""
   register(input: RegisterInput!): AuthPayload!
+}
+
+type Notification {
+  body: String!
+  createdAt: DateTime!
+  id: String!
+  readAt: DateTime
+  title: String!
+  type: NotificationType!
+}
+
+"""Severity of an in-app notification"""
+enum NotificationType {
+  ALERT
+  INFO
+  SUCCESS
+  WARNING
 }
 
 type Query {
@@ -37,6 +60,12 @@ type Query {
 
   """Currently authenticated user"""
   me: User!
+
+  """Notifications for the signed-in user, newest first"""
+  notifications(unreadOnly: Boolean): [Notification!]!
+
+  """Unread notification count for the signed-in user"""
+  unreadNotificationCount: Int!
 }
 
 input RegisterInput {
@@ -48,6 +77,9 @@ input RegisterInput {
 type Subscription {
   """Emits whenever a health check runs"""
   healthUpdated: HealthPayload!
+
+  """Emits when the signed-in user receives a notification"""
+  notificationReceived: Notification!
 }
 
 type User {

@@ -10,6 +10,7 @@ import { HealthModule } from '../health/health.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PubSubModule } from '../pubsub/pubsub.module';
+import { NotificationModule } from '../notification/notification.module';
 import { UserModule } from '../user/user.module';
 import { AppController } from './app.controller';
 
@@ -40,6 +41,7 @@ import { AppController } from './app.controller';
     HealthModule,
     UserModule,
     AuthModule,
+    NotificationModule,
   ],
   controllers: [AppController],
 })
