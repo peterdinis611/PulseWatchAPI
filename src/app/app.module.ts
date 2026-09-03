@@ -11,6 +11,7 @@ import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PubSubModule } from '../pubsub/pubsub.module';
 import { NotificationModule } from '../notification/notification.module';
+import { MonitorModule } from '../monitor/monitor.module';
 import { UserModule } from '../user/user.module';
 import { AppController } from './app.controller';
 
@@ -42,6 +43,7 @@ import { AppController } from './app.controller';
     UserModule,
     AuthModule,
     NotificationModule,
+    MonitorModule,
   ],
   controllers: [AppController],
 })

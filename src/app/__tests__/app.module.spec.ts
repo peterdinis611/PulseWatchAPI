@@ -5,6 +5,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { PubSubModule } from '../../pubsub/pubsub.module';
 import { AuthModule } from '../../auth/auth.module';
 import { NotificationModule } from '../../notification/notification.module';
+import { MonitorModule } from '../../monitor/monitor.module';
 import { UserModule } from '../../user/user.module';
 import { AppController } from '../app.controller';
 import { AppModule } from '../app.module';
@@ -19,7 +20,7 @@ describe('AppModule', () => {
     expect(controllers).toEqual(expect.arrayContaining([AppController]));
   });
 
-  it('imports Prisma, Health, Logger, PubSub, User, Auth and Notification modules', () => {
+  it('imports Prisma, Health, Logger, PubSub, User, Auth, Notification and Monitor modules', () => {
     const imports = Reflect.getMetadata(
       MODULE_METADATA.IMPORTS,
       AppModule,
@@ -34,6 +35,7 @@ describe('AppModule', () => {
         UserModule,
         AuthModule,
         NotificationModule,
+        MonitorModule,
       ]),
     );
   });

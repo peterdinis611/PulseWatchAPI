@@ -15,6 +15,19 @@ enum NotificationType {
   SUCCESS
 }
 
+enum MonitorType {
+  HTTP
+  REDIS
+  DATABASE
+  TCP
+}
+
+enum MonitorStatus {
+  UNKNOWN
+  UP
+  DOWN
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -23,6 +36,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   notifications Notification[]
+  monitors      Monitor[]
 }
 
 model Notification {
@@ -36,4 +50,25 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, createdAt])
+}
+
+model Monitor {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  type          MonitorType
+  enabled       Boolean       @default(true)
+  intervalSec   Int           @default(60)
+  timeoutMs     Int           @default(10000)
+  config        String
+  lastStatus    MonitorStatus @default(UNKNOWN)
+  lastError     String?
+  lastLatencyMs Int?
+  lastCheckedAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([enabled, lastCheckedAt])
 }

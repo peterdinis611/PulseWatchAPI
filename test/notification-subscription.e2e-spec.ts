@@ -84,11 +84,15 @@ describe('Notification subscriptions (e2e)', () => {
         client.subscribe(
           { query: NOTIFICATION_RECEIVED },
           {
-            next: () => reject(new Error('expected authorization error')),
-            error: (error) => {
-              expect(String(error)).toMatch(/Unauthorized/i);
-              resolve();
+            next: (result) => {
+              try {
+                expect(result.errors?.[0]?.message).toMatch(/Unauthorized/i);
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
             },
+            error: reject,
             complete: () => reject(new Error('completed without error')),
           },
         );
