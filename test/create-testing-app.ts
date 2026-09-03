@@ -1,3 +1,4 @@
+import { AddressInfo } from 'node:net';
 import { App } from 'supertest/types';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -23,4 +24,17 @@ export async function createTestingApp(): Promise<INestApplication<App>> {
   );
   await app.init();
   return app;
+}
+
+export async function createListeningTestingApp(): Promise<{
+  app: INestApplication<App>;
+  port: number;
+}> {
+  const app = await createTestingApp();
+  await app.listen(0);
+  const address = app.getHttpServer().address() as AddressInfo | string | null;
+  if (!address || typeof address === 'string') {
+    throw new Error('Expected TCP listen address');
+  }
+  return { app, port: address.port };
 }

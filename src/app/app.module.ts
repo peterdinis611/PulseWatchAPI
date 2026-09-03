@@ -4,11 +4,12 @@ import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
-import { Request } from 'express';
 import { AuthModule } from '../auth/auth.module';
+import { createGqlContext } from '../graphql/create-gql-context';
 import { HealthModule } from '../health/health.module';
 import { LoggerModule } from '../logger/logger.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PubSubModule } from '../pubsub/pubsub.module';
 import { UserModule } from '../user/user.module';
 import { AppController } from './app.controller';
 
@@ -26,10 +27,16 @@ import { AppController } from './app.controller';
       playground: false,
       introspection: true,
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
-      context: ({ req }: { req: Request }) => ({ req }),
+      subscriptions: {
+        'graphql-ws': {
+          path: '/graphql',
+        },
+      },
+      context: createGqlContext,
     }),
     PrismaModule,
     LoggerModule,
+    PubSubModule,
     HealthModule,
     UserModule,
     AuthModule,

@@ -45,6 +45,11 @@ input RegisterInput {
   password: String!
 }
 
+type Subscription {
+  """Emits whenever a health check runs"""
+  healthUpdated: HealthPayload!
+}
+
 type User {
   createdAt: DateTime!
   email: String!
