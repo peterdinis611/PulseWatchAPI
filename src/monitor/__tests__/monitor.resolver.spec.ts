@@ -14,6 +14,8 @@ describe('MonitorResolver', () => {
   let updateForUser: jest.Mock;
   let deleteForUser: jest.Mock;
   let checkForUser: jest.Mock;
+  let probeForUser: jest.Mock;
+  let quickCheckForUser: jest.Mock;
   let getForUser: jest.Mock;
   let updateForUserSettings: jest.Mock;
 
@@ -47,6 +49,18 @@ describe('MonitorResolver', () => {
     updateForUser = jest.fn().mockResolvedValue(view);
     deleteForUser = jest.fn().mockResolvedValue(true);
     checkForUser = jest.fn().mockResolvedValue(view);
+    probeForUser = jest.fn().mockResolvedValue({
+      status: MonitorStatus.UP,
+      error: null,
+      latencyMs: 12,
+      checkedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    quickCheckForUser = jest.fn().mockResolvedValue({
+      status: MonitorStatus.DOWN,
+      error: 'timeout',
+      latencyMs: 10000,
+      checkedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
     getForUser = jest.fn().mockResolvedValue({
       defaultIntervalSec: 60,
       defaultTimeoutMs: 10000,
@@ -74,6 +88,8 @@ describe('MonitorResolver', () => {
             updateForUser,
             deleteForUser,
             checkForUser,
+            probeForUser,
+            quickCheckForUser,
           },
         },
         {
@@ -112,6 +128,27 @@ describe('MonitorResolver', () => {
     });
     expect(checkForUser).toHaveBeenCalledWith('user-1', 'm-1');
     expect(deleteForUser).toHaveBeenCalledWith('user-1', 'm-1');
+  });
+
+  it('probes and quick-checks monitors without persisting', async () => {
+    const input = {
+      name: 'API',
+      type: MonitorType.HTTP,
+      http: { url: 'https://example.com/health' },
+    };
+
+    await expect(resolver.probeMonitor(user, input)).resolves.toEqual(
+      expect.objectContaining({ status: MonitorStatus.UP, latencyMs: 12 }),
+    );
+    await expect(
+      resolver.quickMonitorCheck(user, 'm-1', { http: input.http }),
+    ).resolves.toEqual(
+      expect.objectContaining({ status: MonitorStatus.DOWN, error: 'timeout' }),
+    );
+    expect(probeForUser).toHaveBeenCalledWith('user-1', input);
+    expect(quickCheckForUser).toHaveBeenCalledWith('user-1', 'm-1', {
+      http: input.http,
+    });
   });
 
   it('loads and updates per-user monitor settings', async () => {

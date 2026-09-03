@@ -15,6 +15,12 @@ export class Notification {
   @Field()
   body!: string;
 
+  @Field(() => String, { nullable: true })
+  monitorId!: string | null;
+
+  @Field(() => String, { nullable: true })
+  stressTestId!: string | null;
+
   @Field(() => Date, { nullable: true })
   readAt!: Date | null;
 

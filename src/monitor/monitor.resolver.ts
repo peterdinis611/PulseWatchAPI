@@ -8,6 +8,7 @@ import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
 import { UpdateMonitorSettingsInput } from './dto/update-monitor-settings.input';
 import { Monitor } from './monitor.model';
+import { MonitorCheckResult } from './monitor-check-result.model';
 import { MonitorSettings } from './monitor-settings.model';
 import { MonitorService, MonitorView } from './monitor.service';
 import {
@@ -78,6 +79,30 @@ export class MonitorResolver {
     @UuidArgs() id: string,
   ): Promise<MonitorView> {
     return this.monitorService.checkForUser(user.id, id);
+  }
+
+  @Mutation(() => MonitorCheckResult, {
+    description: 'Probe a monitor config without saving it',
+  })
+  @UseGuards(GqlAuthGuard)
+  probeMonitor(
+    @CurrentUser() user: PublicUser,
+    @Args('input') input: CreateMonitorInput,
+  ): Promise<MonitorCheckResult> {
+    return this.monitorService.probeForUser(user.id, input);
+  }
+
+  @Mutation(() => MonitorCheckResult, {
+    description:
+      'Run a quick check for a monitor; optional input overrides saved config without persisting',
+  })
+  @UseGuards(GqlAuthGuard)
+  quickMonitorCheck(
+    @CurrentUser() user: PublicUser,
+    @UuidArgs() id: string,
+    @Args('input', { nullable: true }) input?: UpdateMonitorInput,
+  ): Promise<MonitorCheckResult> {
+    return this.monitorService.quickCheckForUser(user.id, id, input);
   }
 
   @Query(() => MonitorSettings, {

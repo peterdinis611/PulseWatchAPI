@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MonitorRunnerService } from '../monitor-runner.service';
+import { MonitorProbeService } from '../monitor-probe.service';
 import { MonitorService } from '../monitor.service';
 import { CacheService } from '../../cache/cache.service';
 import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
@@ -20,6 +21,7 @@ describe('MonitorService', () => {
   let update: jest.Mock;
   let deleteMany: jest.Mock;
   let run: jest.Mock;
+  let probe: jest.Mock;
   let jobs: ReturnType<typeof createTestJobsService>;
   let settings: ReturnType<typeof createTestMonitorSettingsService>;
 
@@ -51,6 +53,11 @@ describe('MonitorService', () => {
     update = jest.fn();
     deleteMany = jest.fn();
     run = jest.fn();
+    probe = jest.fn().mockResolvedValue({
+      status: MonitorStatus.UP,
+      error: null,
+      latencyMs: 42,
+    });
     jobs = createTestJobsService();
     settings = createTestMonitorSettingsService();
 
@@ -66,6 +73,10 @@ describe('MonitorService', () => {
         {
           provide: MonitorRunnerService,
           useValue: { run },
+        },
+        {
+          provide: MonitorProbeService,
+          useValue: { probe },
         },
         {
           provide: CacheService,
@@ -222,5 +233,44 @@ describe('MonitorService', () => {
       expect.objectContaining({ lastStatus: MonitorStatus.UP }),
     );
     expect(run).toHaveBeenCalledWith('m-1');
+  });
+
+  it('probes a draft monitor config without persisting', async () => {
+    await expect(
+      service.probeForUser('user-1', {
+        name: 'Draft',
+        type: MonitorType.HTTP,
+        http: { url: 'https://example.com/health' },
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: MonitorStatus.UP,
+        latencyMs: 42,
+        error: null,
+      }),
+    );
+    expect(probe).toHaveBeenCalledWith(
+      MonitorType.HTTP,
+      expect.objectContaining({ url: 'https://example.com/health' }),
+      10000,
+    );
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('quick-checks a monitor with draft input without persisting', async () => {
+    findFirst.mockResolvedValue(row);
+
+    await expect(
+      service.quickCheckForUser('user-1', 'm-1', {
+        http: { url: 'https://example.com/new-path' },
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: MonitorStatus.UP,
+        latencyMs: 42,
+      }),
+    );
+    expect(probe).toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
   });
 });

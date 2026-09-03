@@ -1,6 +1,6 @@
 # PulseWatch backend
 
-NestJS GraphQL API so SQLite (Prisma).
+NestJS GraphQL API so SQLite (Prisma). Celý projekt, spustenie UI a screenshoty sú v [README v koreni](../README.md).
 
 ## Stack
 

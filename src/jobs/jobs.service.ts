@@ -10,7 +10,9 @@ import {
 import {
   STRESS_TEST_JOB,
   STRESS_TEST_QUEUE,
+  STRESS_TEST_SCHEDULE_JOB,
   type StressTestJobData,
+  stressTestSchedulerId,
 } from './stress-test.job';
 
 export const MONITOR_CHECK_QUEUE_TOKEN = 'MONITOR_CHECK_QUEUE';
@@ -21,7 +23,10 @@ export type MonitorCheckQueue = Pick<
   'upsertJobScheduler' | 'removeJobScheduler'
 >;
 
-export type StressTestQueue = Pick<Queue<StressTestJobData>, 'add'>;
+export type StressTestQueue = Pick<
+  Queue<StressTestJobData>,
+  'add' | 'upsertJobScheduler' | 'removeJobScheduler'
+>;
 
 @Injectable()
 export class JobsService {
@@ -77,12 +82,53 @@ export class JobsService {
       return false;
     }
 
-    await this.stressQueue.add(STRESS_TEST_JOB, { runId }, { jobId: runId });
+    await this.stressQueue.add(
+      STRESS_TEST_JOB,
+      { runId },
+      { jobId: runId },
+    );
 
     this.logger.debug(
       `Enqueued ${STRESS_TEST_QUEUE} run ${runId}`,
       JobsService.name,
     );
     return true;
+  }
+
+  async scheduleStressTest(
+    stressTestId: string,
+    intervalSec: number,
+  ): Promise<void> {
+    if (!this.stressQueue) {
+      return;
+    }
+
+    await this.stressQueue.upsertJobScheduler(
+      stressTestSchedulerId(stressTestId),
+      { every: intervalSec * 1000 },
+      {
+        name: STRESS_TEST_SCHEDULE_JOB,
+        data: { stressTestId },
+      },
+    );
+
+    this.logger.debug(
+      `Scheduled ${STRESS_TEST_QUEUE} for ${stressTestId} every ${intervalSec}s`,
+      JobsService.name,
+    );
+  }
+
+  async unscheduleStressTest(stressTestId: string): Promise<void> {
+    if (!this.stressQueue) {
+      return;
+    }
+
+    await this.stressQueue.removeJobScheduler(
+      stressTestSchedulerId(stressTestId),
+    );
+    this.logger.debug(
+      `Removed ${STRESS_TEST_QUEUE} scheduler for ${stressTestId}`,
+      JobsService.name,
+    );
   }
 }

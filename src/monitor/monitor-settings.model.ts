@@ -14,6 +14,15 @@ export class MonitorSettings {
   @Field()
   notifyOnRecover!: boolean;
 
+  @Field(() => String, { nullable: true })
+  webhookUrl!: string | null;
+
+  @Field(() => String, { nullable: true })
+  slackWebhookUrl!: string | null;
+
+  @Field(() => String, { nullable: true })
+  alertEmail!: string | null;
+
   @Field()
   updatedAt!: Date;
 }

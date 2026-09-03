@@ -124,6 +124,13 @@ type Monitor {
   updatedAt: DateTime!
 }
 
+type MonitorCheckResult {
+  checkedAt: DateTime!
+  error: String
+  latencyMs: Int!
+  status: MonitorStatus!
+}
+
 type MonitorConfig {
   allowUnauthorized: Boolean
   expectedStatus: Int
@@ -192,6 +199,14 @@ type Mutation {
 
   """Mark a notification as read"""
   markNotificationRead(id: String!): Notification!
+
+  """Probe a monitor config without saving it"""
+  probeMonitor(input: CreateMonitorInput!): MonitorCheckResult!
+
+  """
+  Run a quick check for a monitor; optional input overrides saved config without persisting
+  """
+  quickMonitorCheck(id: String!, input: UpdateMonitorInput): MonitorCheckResult!
 
   """Create an account"""
   register(input: RegisterInput!): AuthPayload!

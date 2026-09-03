@@ -15,6 +15,7 @@ import {
   type MonitorConfigValue,
 } from './monitor-config';
 import { MonitorRunnerService } from './monitor-runner.service';
+import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorStatus } from './monitor-status';
 import { MonitorType } from './monitor-type';
@@ -22,6 +23,7 @@ import {
   resolveMonitorConfig,
   hasMonitorConfigUpdate,
 } from './resolve-monitor-config';
+import type { MonitorCheckResultView } from './monitor-check-result.model';
 
 const monitorSelect = {
   id: true,
@@ -61,6 +63,7 @@ export class MonitorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly runner: MonitorRunnerService,
+    private readonly probe: MonitorProbeService,
     private readonly cache: CacheService,
     private readonly jobs: JobsService,
     private readonly settings: MonitorSettingsService,
@@ -173,6 +176,53 @@ export class MonitorService {
     await this.requireOwned(userId, id);
     const updated = await this.runner.run(id);
     return this.toView(updated);
+  }
+
+  async probeForUser(
+    userId: string,
+    input: CreateMonitorInput,
+  ): Promise<MonitorCheckResultView> {
+    const config = resolveMonitorConfig(input.type, input, true);
+    const defaults = await this.settings.getForUser(userId);
+    const timeoutMs = input.timeoutMs ?? defaults.defaultTimeoutMs;
+    return this.runProbe(input.type, config, timeoutMs);
+  }
+
+  async quickCheckForUser(
+    userId: string,
+    id: string,
+    input?: UpdateMonitorInput,
+  ): Promise<MonitorCheckResultView> {
+    const existing = await this.requireOwned(userId, id);
+    const type = (input?.type ?? existing.type) as MonitorType;
+    const timeoutMs = input?.timeoutMs ?? existing.timeoutMs;
+
+    let config;
+    if (input && hasMonitorConfigUpdate(input)) {
+      config = resolveMonitorConfig(type, input, true);
+    } else if (input?.type && input.type !== existing.type) {
+      throw new BadRequestException(
+        'Config for the new monitor type is required',
+      );
+    } else {
+      config = parseMonitorConfig(existing.config);
+    }
+
+    return this.runProbe(type, config, timeoutMs);
+  }
+
+  private async runProbe(
+    type: MonitorType,
+    config: ReturnType<typeof parseMonitorConfig>,
+    timeoutMs: number,
+  ): Promise<MonitorCheckResultView> {
+    const result = await this.probe.probe(type, config, timeoutMs);
+    return {
+      status: result.status,
+      error: result.error,
+      latencyMs: result.latencyMs,
+      checkedAt: new Date(),
+    };
   }
 
   private async syncJob(monitor: {

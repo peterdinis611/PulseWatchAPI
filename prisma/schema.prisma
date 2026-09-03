@@ -47,14 +47,16 @@ model User {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         NotificationType
+  title        String
+  body         String
+  monitorId    String?
+  stressTestId String?
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
 
   @@index([userId, createdAt])
 }
@@ -75,9 +77,22 @@ model Monitor {
   lastCheckedAt DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  checks        MonitorCheck[]
 
   @@index([userId, createdAt])
   @@index([enabled, lastCheckedAt])
+}
+
+model MonitorCheck {
+  id        String        @id @default(uuid())
+  monitorId String
+  monitor   Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  status    MonitorStatus
+  error     String?
+  latencyMs Int
+  checkedAt DateTime      @default(now())
+
+  @@index([monitorId, checkedAt])
 }
 
 model UserMonitorSettings {
@@ -87,6 +102,9 @@ model UserMonitorSettings {
   defaultTimeoutMs   Int      @default(10000)
   notifyOnDown       Boolean  @default(true)
   notifyOnRecover    Boolean  @default(true)
+  webhookUrl         String?
+  slackWebhookUrl    String?
+  alertEmail         String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -113,12 +131,16 @@ model StressTest {
   lastStatus     StressTestStatus @default(IDLE)
   lastError      String?
   lastSummary    String?
-  lastRunAt      DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  runs           StressTestRun[]
+  lastRunAt            DateTime?
+  scheduleEnabled      Boolean          @default(false)
+  scheduleIntervalSec  Int?
+  scheduleLastRunAt    DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  runs                 StressTestRun[]
 
   @@index([userId, createdAt])
+  @@index([scheduleEnabled, scheduleLastRunAt])
 }
 
 model StressTestRun {

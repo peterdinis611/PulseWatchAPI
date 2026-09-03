@@ -12,6 +12,9 @@ const settingsSelect = {
   defaultTimeoutMs: true,
   notifyOnDown: true,
   notifyOnRecover: true,
+  webhookUrl: true,
+  slackWebhookUrl: true,
+  alertEmail: true,
   updatedAt: true,
 } as const;
 
@@ -20,6 +23,9 @@ export type MonitorSettingsView = {
   defaultTimeoutMs: number;
   notifyOnDown: boolean;
   notifyOnRecover: boolean;
+  webhookUrl: string | null;
+  slackWebhookUrl: string | null;
+  alertEmail: string | null;
   updatedAt: Date;
 };
 
@@ -50,6 +56,9 @@ export class MonitorSettingsService {
         defaultTimeoutMs: input.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS,
         notifyOnDown: input.notifyOnDown ?? true,
         notifyOnRecover: input.notifyOnRecover ?? true,
+        webhookUrl: input.webhookUrl ?? null,
+        slackWebhookUrl: input.slackWebhookUrl ?? null,
+        alertEmail: input.alertEmail ?? null,
       },
       update: {
         ...(input.defaultIntervalSec !== undefined
@@ -63,6 +72,15 @@ export class MonitorSettingsService {
           : {}),
         ...(input.notifyOnRecover !== undefined
           ? { notifyOnRecover: input.notifyOnRecover }
+          : {}),
+        ...(input.webhookUrl !== undefined
+          ? { webhookUrl: input.webhookUrl || null }
+          : {}),
+        ...(input.slackWebhookUrl !== undefined
+          ? { slackWebhookUrl: input.slackWebhookUrl || null }
+          : {}),
+        ...(input.alertEmail !== undefined
+          ? { alertEmail: input.alertEmail || null }
           : {}),
       },
       select: settingsSelect,
@@ -111,6 +129,9 @@ export class MonitorSettingsService {
     defaultTimeoutMs: number;
     notifyOnDown: boolean;
     notifyOnRecover: boolean;
+    webhookUrl: string | null;
+    slackWebhookUrl: string | null;
+    alertEmail: string | null;
     updatedAt: Date;
   }): MonitorSettingsView {
     return {
@@ -118,6 +139,9 @@ export class MonitorSettingsService {
       defaultTimeoutMs: row.defaultTimeoutMs,
       notifyOnDown: row.notifyOnDown,
       notifyOnRecover: row.notifyOnRecover,
+      webhookUrl: row.webhookUrl,
+      slackWebhookUrl: row.slackWebhookUrl,
+      alertEmail: row.alertEmail,
       updatedAt: row.updatedAt,
     };
   }

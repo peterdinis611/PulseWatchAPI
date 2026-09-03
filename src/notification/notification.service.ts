@@ -13,6 +13,8 @@ const notificationSelect = {
   type: true,
   title: true,
   body: true,
+  monitorId: true,
+  stressTestId: true,
   readAt: true,
   createdAt: true,
 } as const;
@@ -23,6 +25,8 @@ export type NotificationRecord = {
   type: NotificationType;
   title: string;
   body: string;
+  monitorId: string | null;
+  stressTestId: string | null;
   readAt: Date | null;
   createdAt: Date;
 };
@@ -31,6 +35,8 @@ export type CreateNotificationData = {
   type: NotificationType;
   title: string;
   body: string;
+  monitorId?: string | null;
+  stressTestId?: string | null;
 };
 
 @Injectable()
@@ -52,6 +58,8 @@ export class NotificationService {
         type: data.type,
         title: data.title,
         body: data.body,
+        monitorId: data.monitorId ?? null,
+        stressTestId: data.stressTestId ?? null,
       },
       select: notificationSelect,
     });

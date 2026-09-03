@@ -1,5 +1,15 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import {
   MAX_INTERVAL_SEC,
   MAX_TIMEOUT_MS,
@@ -32,4 +42,25 @@ export class UpdateMonitorSettingsInput {
   @IsOptional()
   @IsBoolean()
   notifyOnRecover?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  @IsUrl({ require_tld: false }, { message: 'Webhook URL must be valid' })
+  webhookUrl?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  @IsUrl({ require_tld: false }, { message: 'Slack webhook URL must be valid' })
+  slackWebhookUrl?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  @IsEmail({}, { message: 'Alert email must be valid' })
+  alertEmail?: string | null;
 }
