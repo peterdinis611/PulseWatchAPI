@@ -1,4 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
@@ -9,6 +10,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import {
   MAX_INTERVAL_SEC,
@@ -45,6 +47,10 @@ export class UpdateMonitorSettingsInput {
 
   @Field({ nullable: true })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? null : value,
+  )
+  @ValidateIf((_object, value) => value != null)
   @IsString()
   @MaxLength(2048)
   @IsUrl({ require_tld: false }, { message: 'Webhook URL must be valid' })
@@ -52,6 +58,10 @@ export class UpdateMonitorSettingsInput {
 
   @Field({ nullable: true })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? null : value,
+  )
+  @ValidateIf((_object, value) => value != null)
   @IsString()
   @MaxLength(2048)
   @IsUrl({ require_tld: false }, { message: 'Slack webhook URL must be valid' })
@@ -59,6 +69,10 @@ export class UpdateMonitorSettingsInput {
 
   @Field({ nullable: true })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? null : value,
+  )
+  @ValidateIf((_object, value) => value != null)
   @IsString()
   @MaxLength(320)
   @IsEmail({}, { message: 'Alert email must be valid' })

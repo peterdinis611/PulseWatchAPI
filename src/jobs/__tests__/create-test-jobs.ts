@@ -4,5 +4,7 @@ export function createTestJobsService() {
     scheduleMonitorCheck: jest.fn().mockResolvedValue(undefined),
     unscheduleMonitorCheck: jest.fn().mockResolvedValue(undefined),
     enqueueStressTestRun: jest.fn().mockResolvedValue(false),
+    scheduleStressTest: jest.fn().mockResolvedValue(undefined),
+    unscheduleStressTest: jest.fn().mockResolvedValue(undefined),
   };
 }

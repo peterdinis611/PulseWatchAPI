@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { AlertDeliveryService } from '../notification/alert-delivery.service';
 import { LoggerService } from '../logger/logger.service';
 import { NotificationType } from '../notification/notification-type';
 import { NotificationService } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CacheKeys } from '../cache/cache.keys';
+import { MonitorSettingsService } from '../monitor/monitor-settings.service';
 import { generateK6Script } from './k6-script';
 import { K6RunnerService } from './k6-runner.service';
 import { serializeSummary } from './k6-summary';
@@ -17,6 +19,8 @@ export class StressTestExecutorService {
     private readonly prisma: PrismaService,
     private readonly runner: K6RunnerService,
     private readonly notifications: NotificationService,
+    private readonly alertDelivery: AlertDeliveryService,
+    private readonly settings: MonitorSettingsService,
     private readonly cache: CacheService,
     private readonly logger: LoggerService,
   ) {}
@@ -53,11 +57,11 @@ export class StressTestExecutorService {
         ? null
         : clipError(
             result.timedOut
-              ? 'k6 timed out'
+              ? 'k6 vypršal časový limit'
               : result.stderr ||
                   (result.exitCode === 99
-                    ? 'k6 thresholds failed'
-                    : `k6 exited with code ${result.exitCode}`),
+                    ? 'k6 prekročil prahy'
+                    : `k6 skončil s kódom ${result.exitCode}`),
           );
       const summary = serializeSummary(result.summary);
 
@@ -108,12 +112,13 @@ export class StressTestExecutorService {
           lastError: result.error,
           lastSummary: result.summary,
           lastRunAt: finishedAt,
+          scheduleLastRunAt: finishedAt,
         },
       }),
     ]);
 
     this.cache.invalidatePrefix(CacheKeys.stressTestsPrefix(userId));
-    await this.notify(userId, name, result.status, result.error);
+    await this.notify(userId, stressTestId, name, result.status, result.error);
 
     this.logger.debug(
       `Stress test ${name} ${result.status}`,
@@ -123,24 +128,47 @@ export class StressTestExecutorService {
 
   private async notify(
     userId: string,
+    stressTestId: string,
     name: string,
     status: StressTestStatus,
     error: string | null,
   ): Promise<void> {
     try {
+      const prefs = await this.settings.getForUser(userId);
+
       if (status === StressTestStatus.PASSED) {
+        const title = `${name} prešiel`;
+        const body = `${name} skončil v rámci prahov`;
         await this.notifications.createForUser(userId, {
           type: NotificationType.SUCCESS,
-          title: `${name} passed`,
-          body: `${name} finished within thresholds`,
+          title,
+          body,
+          stressTestId,
+        });
+        await this.alertDelivery.deliver(prefs, {
+          type: NotificationType.SUCCESS,
+          title,
+          body,
+          stressTestId,
+          event: 'stress.passed',
         });
         return;
       }
 
+      const title = `${name} zlyhal`;
+      const body = error ?? `${name} neprešiel k6 behom`;
       await this.notifications.createForUser(userId, {
         type: NotificationType.ALERT,
-        title: `${name} failed`,
-        body: error ?? `${name} failed a k6 run`,
+        title,
+        body,
+        stressTestId,
+      });
+      await this.alertDelivery.deliver(prefs, {
+        type: NotificationType.ALERT,
+        title,
+        body,
+        stressTestId,
+        event: 'stress.failed',
       });
     } catch (notifyError) {
       const stack =

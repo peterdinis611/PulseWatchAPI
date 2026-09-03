@@ -9,6 +9,9 @@ export function createTestMonitorSettings(
     defaultTimeoutMs: DEFAULT_TIMEOUT_MS,
     notifyOnDown: true,
     notifyOnRecover: true,
+    webhookUrl: null,
+    slackWebhookUrl: null,
+    alertEmail: null,
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
   };

@@ -13,10 +13,12 @@ import { assertHttpMethod, assertHttpUrl } from './assert-http-url';
 import { CreateStressTestInput } from './dto/create-stress-test.input';
 import { UpdateStressTestInput } from './dto/update-stress-test.input';
 import { deserializeSummary, type StressTestSummaryValue } from './k6-summary';
+import { isStressTestDue } from './stress-test-schedule';
 import { StressTestExecutorService } from './stress-test-executor.service';
 import { StressTestStatus } from './stress-test-status';
 import {
   DEFAULT_EXPECTED_STATUS,
+  DEFAULT_SCHEDULE_INTERVAL_SEC,
   DEFAULT_STRESS_TEST_DURATION_SEC,
   DEFAULT_STRESS_TEST_VUS,
 } from './stress-test.constants';
@@ -36,6 +38,9 @@ const stressTestSelect = {
   lastError: true,
   lastSummary: true,
   lastRunAt: true,
+  scheduleEnabled: true,
+  scheduleIntervalSec: true,
+  scheduleLastRunAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -64,6 +69,9 @@ export type StressTestView = {
   lastError: string | null;
   lastSummary: StressTestSummaryValue | null;
   lastRunAt: Date | null;
+  scheduleEnabled: boolean;
+  scheduleIntervalSec: number | null;
+  scheduleLastRunAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -140,11 +148,19 @@ export class StressTestService {
         expectedStatus: input.expectedStatus ?? DEFAULT_EXPECTED_STATUS,
         p95Ms: input.p95Ms ?? null,
         maxFailRate: input.maxFailRate ?? null,
+        scheduleEnabled: input.scheduleEnabled ?? false,
+        scheduleIntervalSec:
+          input.scheduleEnabled && input.scheduleIntervalSec
+            ? input.scheduleIntervalSec
+            : input.scheduleEnabled
+              ? DEFAULT_SCHEDULE_INTERVAL_SEC
+              : null,
       },
       select: stressTestSelect,
     });
     this.cache.invalidatePrefix(CacheKeys.stressTestsPrefix(userId));
 
+    await this.syncSchedule(created);
     return this.toView(created);
   }
 
@@ -158,6 +174,12 @@ export class StressTestService {
     if (input.name !== undefined && !name) {
       throw new BadRequestException('Name is required');
     }
+
+    const scheduleEnabled = input.scheduleEnabled ?? existing.scheduleEnabled;
+    const scheduleIntervalSec =
+      input.scheduleIntervalSec !== undefined
+        ? input.scheduleIntervalSec
+        : existing.scheduleIntervalSec;
 
     const updated = await this.prisma.stressTest.update({
       where: { id },
@@ -176,11 +198,16 @@ export class StressTestService {
           input.maxFailRate === undefined
             ? existing.maxFailRate
             : input.maxFailRate,
+        scheduleEnabled,
+        scheduleIntervalSec: scheduleEnabled
+          ? (scheduleIntervalSec ?? DEFAULT_SCHEDULE_INTERVAL_SEC)
+          : null,
       },
       select: stressTestSelect,
     });
     this.cache.invalidatePrefix(CacheKeys.stressTestsPrefix(userId));
 
+    await this.syncSchedule(updated);
     return this.toView(updated);
   }
 
@@ -194,11 +221,64 @@ export class StressTestService {
     }
 
     this.cache.invalidatePrefix(CacheKeys.stressTestsPrefix(userId));
+    await this.jobs.unscheduleStressTest(id);
     return true;
   }
 
+  async runScheduled(stressTestId: string): Promise<void> {
+    const test = await this.prisma.stressTest.findUnique({
+      where: { id: stressTestId },
+      select: stressTestSelect,
+    });
+
+    if (!test?.scheduleEnabled || !test.scheduleIntervalSec) {
+      return;
+    }
+
+    try {
+      await this.startRun(test.userId, test.id);
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        return;
+      }
+      throw error;
+    }
+  }
+
+  async runDueScheduled(): Promise<void> {
+    const tests = await this.prisma.stressTest.findMany({
+      where: { scheduleEnabled: true },
+      select: stressTestSelect,
+    });
+
+    for (const test of tests) {
+      if (!isStressTestDue(test)) {
+        continue;
+      }
+
+      try {
+        await this.startRun(test.userId, test.id);
+      } catch (error) {
+        if (error instanceof ConflictException) {
+          continue;
+        }
+        const stack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(
+          `Scheduled stress test failed for ${test.id}`,
+          stack,
+          StressTestService.name,
+        );
+      }
+    }
+  }
+
   async runForUser(userId: string, id: string): Promise<StressTestView> {
-    const test = await this.requireOwned(userId, id);
+    await this.requireOwned(userId, id);
+    await this.startRun(userId, id);
+    return this.findForUser(userId, id);
+  }
+
+  private async startRun(userId: string, id: string): Promise<void> {
     const running = await this.prisma.stressTestRun.findFirst({
       where: { stressTestId: id, status: StressTestStatus.RUNNING },
       select: { id: true },
@@ -208,6 +288,7 @@ export class StressTestService {
       throw new ConflictException('A k6 run is already in progress');
     }
 
+    const now = new Date();
     const run = await this.prisma.stressTestRun.create({
       data: {
         stressTestId: id,
@@ -218,7 +299,11 @@ export class StressTestService {
 
     await this.prisma.stressTest.update({
       where: { id },
-      data: { lastStatus: StressTestStatus.RUNNING, lastError: null },
+      data: {
+        lastStatus: StressTestStatus.RUNNING,
+        lastError: null,
+        scheduleLastRunAt: now,
+      },
     });
     this.cache.invalidatePrefix(CacheKeys.stressTestsPrefix(userId));
 
@@ -234,8 +319,19 @@ export class StressTestService {
       );
       void this.executeInProcess(run.id);
     }
+  }
 
-    return this.findForUser(userId, test.id);
+  private async syncSchedule(test: {
+    id: string;
+    scheduleEnabled: boolean;
+    scheduleIntervalSec: number | null;
+  }): Promise<void> {
+    if (test.scheduleEnabled && test.scheduleIntervalSec) {
+      await this.jobs.scheduleStressTest(test.id, test.scheduleIntervalSec);
+      return;
+    }
+
+    await this.jobs.unscheduleStressTest(test.id);
   }
 
   private executeInProcess(runId: string): void {
@@ -276,6 +372,9 @@ export class StressTestService {
     lastError: string | null;
     lastSummary: string | null;
     lastRunAt: Date | null;
+    scheduleEnabled: boolean;
+    scheduleIntervalSec: number | null;
+    scheduleLastRunAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
   }): StressTestView {
@@ -293,6 +392,9 @@ export class StressTestService {
       lastError: test.lastError,
       lastSummary: deserializeSummary(test.lastSummary),
       lastRunAt: test.lastRunAt,
+      scheduleEnabled: test.scheduleEnabled,
+      scheduleIntervalSec: test.scheduleIntervalSec,
+      scheduleLastRunAt: test.scheduleLastRunAt,
       createdAt: test.createdAt,
       updatedAt: test.updatedAt,
     };

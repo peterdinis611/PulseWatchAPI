@@ -20,12 +20,14 @@ import {
   MAX_DURATION_SEC,
   MAX_FAIL_RATE,
   MAX_P95_MS,
+  MAX_SCHEDULE_INTERVAL_SEC,
   MAX_STRESS_TEST_NAME_LENGTH,
   MAX_URL_LENGTH,
   MAX_VUS,
   MIN_DURATION_SEC,
   MIN_FAIL_RATE,
   MIN_P95_MS,
+  MIN_SCHEDULE_INTERVAL_SEC,
   MIN_VUS,
   STRESS_TEST_METHODS,
 } from '../stress-test.constants';
@@ -95,4 +97,15 @@ export class CreateStressTestInput {
   @Min(MIN_FAIL_RATE)
   @Max(MAX_FAIL_RATE)
   maxFailRate?: number;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  scheduleEnabled?: boolean;
+
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_SCHEDULE_INTERVAL_SEC)
+  @Max(MAX_SCHEDULE_INTERVAL_SEC)
+  scheduleIntervalSec?: number;
 }

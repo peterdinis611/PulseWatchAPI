@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AlertDeliveryService } from '../notification/alert-delivery.service';
 import { LoggerService } from '../logger/logger.service';
 import { NotificationType } from '../notification/notification-type';
 import { NotificationService } from '../notification/notification.service';
@@ -6,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CacheKeys } from '../cache/cache.keys';
 import { isMonitorDue, parseMonitorConfig } from './monitor-config';
+import { MonitorCheckHistoryService } from './monitor-check-history.service';
 import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorStatus } from './monitor-status';
@@ -53,6 +55,8 @@ export class MonitorRunnerService {
     private readonly prisma: PrismaService,
     private readonly probe: MonitorProbeService,
     private readonly notifications: NotificationService,
+    private readonly alertDelivery: AlertDeliveryService,
+    private readonly history: MonitorCheckHistoryService,
     private readonly logger: LoggerService,
     private readonly cache: CacheService,
     private readonly settings: MonitorSettingsService,
@@ -97,6 +101,7 @@ export class MonitorRunnerService {
         parseMonitorConfig(monitor.config),
         monitor.timeoutMs,
       );
+      const checkedAt = new Date();
 
       const updated = await this.prisma.monitor.update({
         where: { id },
@@ -104,13 +109,21 @@ export class MonitorRunnerService {
           lastStatus: result.status,
           lastError: result.error,
           lastLatencyMs: result.latencyMs,
-          lastCheckedAt: new Date(),
+          lastCheckedAt: checkedAt,
         },
         select: monitorSelect,
       });
       this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(monitor.userId));
 
+      await this.history.record(id, {
+        status: result.status,
+        error: result.error,
+        latencyMs: result.latencyMs,
+        checkedAt,
+      });
+
       await this.notifyStatusChange(
+        monitor.id,
         monitor.userId,
         monitor.name,
         previousStatus,
@@ -143,6 +156,7 @@ export class MonitorRunnerService {
   }
 
   private async notifyStatusChange(
+    monitorId: string,
     userId: string,
     name: string,
     previous: MonitorStatus,
@@ -164,10 +178,20 @@ export class MonitorRunnerService {
         if (!prefs.notifyOnDown) {
           return;
         }
+        const title = `${name} je dole`;
+        const body = error ?? `${name} neprešiel kontrolou dostupnosti`;
         await this.notifications.createForUser(userId, {
           type: NotificationType.ALERT,
-          title: `${name} is down`,
-          body: error ?? `${name} failed a health check`,
+          title,
+          body,
+          monitorId,
+        });
+        await this.alertDelivery.deliver(prefs, {
+          type: NotificationType.ALERT,
+          title,
+          body,
+          monitorId,
+          event: 'monitor.down',
         });
         return;
       }
@@ -176,10 +200,20 @@ export class MonitorRunnerService {
         if (!prefs.notifyOnRecover) {
           return;
         }
+        const title = `${name} je opäť hore`;
+        const body = `${name} opäť odpovedá na kontrolu`;
         await this.notifications.createForUser(userId, {
           type: NotificationType.SUCCESS,
-          title: `${name} recovered`,
-          body: `${name} is responding again`,
+          title,
+          body,
+          monitorId,
+        });
+        await this.alertDelivery.deliver(prefs, {
+          type: NotificationType.SUCCESS,
+          title,
+          body,
+          monitorId,
+          event: 'monitor.recover',
         });
       }
     } catch (notifyError) {

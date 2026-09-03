@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { UuidArgs } from '../common/uuid-args';
@@ -8,6 +8,8 @@ import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
 import { UpdateMonitorSettingsInput } from './dto/update-monitor-settings.input';
 import { Monitor } from './monitor.model';
+import { MonitorCheck, MonitorUptime } from './monitor-check.model';
+import { MonitorCheckHistoryService } from './monitor-check-history.service';
 import { MonitorCheckResult } from './monitor-check-result.model';
 import { MonitorSettings } from './monitor-settings.model';
 import { MonitorService, MonitorView } from './monitor.service';
@@ -21,6 +23,7 @@ export class MonitorResolver {
   constructor(
     private readonly monitorService: MonitorService,
     private readonly settings: MonitorSettingsService,
+    private readonly checkHistory: MonitorCheckHistoryService,
   ) {}
 
   @Query(() => [Monitor], {
@@ -125,5 +128,33 @@ export class MonitorResolver {
     @Args('input') input: UpdateMonitorSettingsInput,
   ): Promise<MonitorSettingsView> {
     return this.settings.updateForUser(user.id, input);
+  }
+
+  @Query(() => [MonitorCheck], {
+    description: 'Recent check history for a monitor',
+  })
+  @UseGuards(GqlAuthGuard)
+  monitorChecks(
+    @CurrentUser() user: PublicUser,
+    @UuidArgs() id: string,
+    @Args('hours', { type: () => Int, nullable: true, defaultValue: 24 })
+    hours?: number,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 200 })
+    limit?: number,
+  ) {
+    return this.checkHistory.listForMonitor(user.id, id, hours, limit);
+  }
+
+  @Query(() => MonitorUptime, {
+    description: 'Uptime summary for a monitor over a time window',
+  })
+  @UseGuards(GqlAuthGuard)
+  monitorUptime(
+    @CurrentUser() user: PublicUser,
+    @UuidArgs() id: string,
+    @Args('hours', { type: () => Int, nullable: true, defaultValue: 24 })
+    hours?: number,
+  ) {
+    return this.checkHistory.uptimeForMonitor(user.id, id, hours);
   }
 }

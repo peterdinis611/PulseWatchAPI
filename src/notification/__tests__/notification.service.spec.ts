@@ -25,6 +25,8 @@ describe('NotificationService', () => {
     type: NotificationType.ALERT,
     title: 'Monitor down',
     body: 'api.pulsewatch.dev is unreachable',
+    monitorId: null,
+    stressTestId: null,
     readAt: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
@@ -89,6 +91,8 @@ describe('NotificationService', () => {
         type: NotificationType.ALERT,
         title: record.title,
         body: record.body,
+        monitorId: null,
+        stressTestId: null,
       },
       select: expect.any(Object),
     });

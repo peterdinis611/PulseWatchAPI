@@ -4,6 +4,9 @@ import { CacheService } from '../../cache/cache.service';
 import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { NotificationType } from '../../notification/notification-type';
 import { NotificationService } from '../../notification/notification.service';
+import { AlertDeliveryService } from '../../notification/alert-delivery.service';
+import { MonitorSettingsService } from '../../monitor/monitor-settings.service';
+import { createTestMonitorSettingsService } from '../../monitor/__tests__/create-test-monitor-settings';
 import { PrismaService } from '../../prisma/prisma.service';
 import { K6RunnerService } from '../k6-runner.service';
 import { StressTestExecutorService } from '../stress-test-executor.service';
@@ -65,6 +68,14 @@ describe('StressTestExecutorService', () => {
           useValue: { createForUser },
         },
         {
+          provide: AlertDeliveryService,
+          useValue: { deliver: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: MonitorSettingsService,
+          useValue: createTestMonitorSettingsService(),
+        },
+        {
           provide: CacheService,
           useValue: createTestCacheService(),
         },
@@ -104,8 +115,9 @@ describe('StressTestExecutorService', () => {
     );
     expect(createForUser).toHaveBeenCalledWith('user-1', {
       type: NotificationType.SUCCESS,
-      title: 'Checkout load passed',
-      body: 'Checkout load finished within thresholds',
+      title: 'Checkout load prešiel',
+      body: 'Checkout load skončil v rámci prahov',
+      stressTestId: 'st-1',
     });
   });
 
@@ -164,7 +176,7 @@ describe('StressTestExecutorService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: StressTestStatus.FAILED,
-          error: 'k6 thresholds failed',
+          error: 'k6 prekročil prahy',
         }),
       }),
     );
@@ -185,7 +197,7 @@ describe('StressTestExecutorService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: StressTestStatus.FAILED,
-          error: 'k6 timed out',
+          error: 'k6 vypršal časový limit',
         }),
       }),
     );

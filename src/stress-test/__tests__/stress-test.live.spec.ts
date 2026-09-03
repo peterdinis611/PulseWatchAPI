@@ -7,6 +7,9 @@ import { CacheService } from '../../cache/cache.service';
 import { createTestCacheService } from '../../cache/__tests__/create-test-cache';
 import { NotificationType } from '../../notification/notification-type';
 import { NotificationService } from '../../notification/notification.service';
+import { AlertDeliveryService } from '../../notification/alert-delivery.service';
+import { MonitorSettingsService } from '../../monitor/monitor-settings.service';
+import { createTestMonitorSettingsService } from '../../monitor/__tests__/create-test-monitor-settings';
 import { PrismaService } from '../../prisma/prisma.service';
 import { K6RunnerService } from '../k6-runner.service';
 import { StressTestExecutorService } from '../stress-test-executor.service';
@@ -75,6 +78,14 @@ describeK6('StressTestExecutorService (live k6)', () => {
         {
           provide: NotificationService,
           useValue: { createForUser },
+        },
+        {
+          provide: AlertDeliveryService,
+          useValue: { deliver: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: MonitorSettingsService,
+          useValue: createTestMonitorSettingsService(),
         },
         {
           provide: CacheService,

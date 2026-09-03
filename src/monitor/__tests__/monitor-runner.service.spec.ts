@@ -5,8 +5,10 @@ import { createTestCacheService } from '../../cache/__tests__/create-test-cache'
 import { NotificationType } from '../../notification/notification-type';
 import { NotificationService } from '../../notification/notification.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MonitorCheckHistoryService } from '../monitor-check-history.service';
 import { MonitorProbeService } from '../monitor-probe.service';
 import { MonitorRunnerService } from '../monitor-runner.service';
+import { AlertDeliveryService } from '../../notification/alert-delivery.service';
 import { MonitorSettingsService } from '../monitor-settings.service';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
@@ -19,6 +21,8 @@ describe('MonitorRunnerService', () => {
   let update: jest.Mock;
   let probe: jest.Mock;
   let createForUser: jest.Mock;
+  let record: jest.Mock;
+  let deliver: jest.Mock;
   let settings: ReturnType<typeof createTestMonitorSettingsService>;
 
   const monitor = {
@@ -48,6 +52,8 @@ describe('MonitorRunnerService', () => {
     update = jest.fn();
     probe = jest.fn();
     createForUser = jest.fn().mockResolvedValue({});
+    record = jest.fn().mockResolvedValue(undefined);
+    deliver = jest.fn().mockResolvedValue(undefined);
     settings = createTestMonitorSettingsService();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -66,6 +72,14 @@ describe('MonitorRunnerService', () => {
         {
           provide: NotificationService,
           useValue: { createForUser },
+        },
+        {
+          provide: AlertDeliveryService,
+          useValue: { deliver },
+        },
+        {
+          provide: MonitorCheckHistoryService,
+          useValue: { record },
         },
         {
           provide: LoggerService,
@@ -102,8 +116,9 @@ describe('MonitorRunnerService', () => {
 
     expect(createForUser).toHaveBeenCalledWith('user-1', {
       type: NotificationType.ALERT,
-      title: 'API is down',
+      title: 'API je dole',
       body: 'Expected HTTP 200, received 503',
+      monitorId: 'm-1',
     });
   });
 
@@ -123,8 +138,9 @@ describe('MonitorRunnerService', () => {
 
     expect(createForUser).toHaveBeenCalledWith('user-1', {
       type: NotificationType.SUCCESS,
-      title: 'API recovered',
-      body: 'API is responding again',
+      title: 'API je opäť hore',
+      body: 'API opäť odpovedá na kontrolu',
+      monitorId: 'm-1',
     });
   });
 
@@ -151,6 +167,9 @@ describe('MonitorRunnerService', () => {
       defaultTimeoutMs: 10000,
       notifyOnDown: false,
       notifyOnRecover: true,
+      webhookUrl: null,
+      slackWebhookUrl: null,
+      alertEmail: null,
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
     findUnique.mockResolvedValue(monitor);

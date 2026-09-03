@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { PublicUser } from '../../user/public-user';
 import { MonitorResolver } from '../monitor.resolver';
+import { MonitorCheckHistoryService } from '../monitor-check-history.service';
 import { MonitorService } from '../monitor.service';
 import { MonitorSettingsService } from '../monitor-settings.service';
 import { MonitorStatus } from '../monitor-status';
@@ -97,6 +98,19 @@ describe('MonitorResolver', () => {
           useValue: {
             getForUser,
             updateForUser: updateForUserSettings,
+          },
+        },
+        {
+          provide: MonitorCheckHistoryService,
+          useValue: {
+            listForMonitor: jest.fn().mockResolvedValue([]),
+            uptimeForMonitor: jest.fn().mockResolvedValue({
+              periodHours: 24,
+              totalChecks: 0,
+              upChecks: 0,
+              uptimePercent: 100,
+              avgLatencyMs: null,
+            }),
           },
         },
       ],

@@ -44,6 +44,15 @@ export class StressTest {
   lastRunAt!: Date | null;
 
   @Field()
+  scheduleEnabled!: boolean;
+
+  @Field(() => Int, { nullable: true })
+  scheduleIntervalSec!: number | null;
+
+  @Field(() => Date, { nullable: true })
+  scheduleLastRunAt!: Date | null;
+
+  @Field()
   createdAt!: Date;
 
   @Field()
