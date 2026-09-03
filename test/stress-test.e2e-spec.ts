@@ -3,6 +3,7 @@ process.env.DATABASE_URL = 'file:./data/test.sqlite';
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.JWT_EXPIRES_IN = '1h';
 
+import { spawnSync } from 'node:child_process';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -80,9 +81,10 @@ const STRESS_TEST_FIELDS = `
 
 describe('Stress tests (e2e)', () => {
   let app: INestApplication<App>;
+  let port: number;
 
   beforeEach(async () => {
-    ({ app } = await createListeningTestingApp());
+    ({ app, port } = await createListeningTestingApp());
   });
 
   afterEach(async () => {
@@ -185,4 +187,189 @@ describe('Stress tests (e2e)', () => {
     );
     expect(body.errors?.[0]?.message).toMatch(/unauthorized/i);
   });
+
+  it('rejects out-of-range VUs and duration', async () => {
+    const auth = await register(
+      app,
+      `stress-limits-${Date.now()}@pulsewatch.dev`,
+    );
+
+    const tooManyVus = await gql(
+      app,
+      `
+      mutation Create($input: CreateStressTestInput!) {
+        createStressTest(input: $input) { id }
+      }
+    `,
+      {
+        token: auth.accessToken,
+        variables: {
+          input: {
+            name: 'Too heavy',
+            url: 'https://example.com',
+            vus: 51,
+          },
+        },
+      },
+    );
+    expect(tooManyVus.errors?.[0]?.message).toMatch(/vus|50/i);
+
+    const tooShort = await gql(
+      app,
+      `
+      mutation Create($input: CreateStressTestInput!) {
+        createStressTest(input: $input) { id }
+      }
+    `,
+      {
+        token: auth.accessToken,
+        variables: {
+          input: {
+            name: 'Too short',
+            url: 'https://example.com',
+            durationSec: 3,
+          },
+        },
+      },
+    );
+    expect(tooShort.errors?.[0]?.message).toMatch(/duration/i);
+  });
 });
+
+const k6Installed = (() => {
+  try {
+    return spawnSync('k6', ['version'], { encoding: 'utf8' }).status === 0;
+  } catch {
+    return false;
+  }
+})();
+
+(k6Installed ? describe : describe.skip)('Stress tests live k6 (e2e)', () => {
+  let app: INestApplication<App>;
+  let port: number;
+
+  beforeEach(async () => {
+    ({ app, port } = await createListeningTestingApp());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('runs a 2-VU load against the local health endpoint', async () => {
+    const auth = await register(
+      app,
+      `stress-live-${Date.now()}@pulsewatch.dev`,
+    );
+
+    const created = await gql<{
+      createStressTest: { id: string; lastStatus: string };
+    }>(
+      app,
+      `
+          mutation Create($input: CreateStressTestInput!) {
+            createStressTest(input: $input) { id lastStatus }
+          }
+        `,
+      {
+        token: auth.accessToken,
+        variables: {
+          input: {
+            name: 'Health load',
+            url: `http://127.0.0.1:${port}/health`,
+            vus: 2,
+            durationSec: 5,
+            expectedStatus: 200,
+            p95Ms: 5_000,
+            maxFailRate: 0.1,
+          },
+        },
+      },
+    );
+    expect(created.errors).toBeUndefined();
+    const id = created.data?.createStressTest.id;
+    expect(id).toBeDefined();
+
+    const started = await gql<{
+      runStressTest: { lastStatus: string };
+    }>(
+      app,
+      `
+          mutation Run($id: String!) {
+            runStressTest(id: $id) { lastStatus }
+          }
+        `,
+      { token: auth.accessToken, variables: { id } },
+    );
+    expect(started.data?.runStressTest.lastStatus).toBe('RUNNING');
+
+    const finished = await waitForRun(app, auth.accessToken, id!);
+    expect(finished.lastStatus).toBe('PASSED');
+    expect(finished.lastSummary?.httpReqs).toBeGreaterThan(0);
+    expect(finished.lastSummary?.failRate).toBe(0);
+
+    const runs = await gql<{
+      stressTestRuns: {
+        status: string;
+        summary: { httpReqs: number | null };
+      }[];
+    }>(
+      app,
+      `
+          query Runs($id: String!) {
+            stressTestRuns(id: $id) {
+              status
+              summary { httpReqs }
+            }
+          }
+        `,
+      { token: auth.accessToken, variables: { id } },
+    );
+    expect(runs.data?.stressTestRuns[0]?.status).toBe('PASSED');
+  }, 30_000);
+});
+
+async function waitForRun(
+  app: INestApplication<App>,
+  token: string,
+  id: string,
+): Promise<{
+  lastStatus: string;
+  lastError: string | null;
+  lastSummary: { httpReqs: number | null; failRate: number | null } | null;
+}> {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    const body = await gql<{
+      stressTest: {
+        lastStatus: string;
+        lastError: string | null;
+        lastSummary: {
+          httpReqs: number | null;
+          failRate: number | null;
+        } | null;
+      };
+    }>(
+      app,
+      `
+        query Status($id: String!) {
+          stressTest(id: $id) {
+            lastStatus
+            lastError
+            lastSummary { httpReqs failRate }
+          }
+        }
+      `,
+      { token, variables: { id } },
+    );
+    const current = body.data?.stressTest;
+    if (
+      current &&
+      (current.lastStatus === 'PASSED' || current.lastStatus === 'FAILED')
+    ) {
+      return current;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('Timed out waiting for k6 stress test to finish');
+}

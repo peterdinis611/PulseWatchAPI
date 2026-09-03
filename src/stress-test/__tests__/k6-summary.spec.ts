@@ -49,6 +49,21 @@ describe('parseK6Summary', () => {
     expect(parseK6Summary('not-json')).toBeNull();
     expect(parseK6Summary('{}')).toBeNull();
   });
+
+  it('uses rate from v1 and value from v2 for failRate', () => {
+    expect(
+      parseK6Summary(
+        JSON.stringify({
+          metrics: {
+            http_reqs: { count: 10 },
+            http_req_failed: { rate: 0.25 },
+            http_req_duration: {},
+            checks: {},
+          },
+        }),
+      )?.failRate,
+    ).toBe(0.25);
+  });
 });
 
 describe('deserializeSummary', () => {

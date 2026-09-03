@@ -141,4 +141,61 @@ describe('StressTestExecutorService', () => {
 
     expect(run).not.toHaveBeenCalled();
   });
+
+  it('marks a threshold exit as failed', async () => {
+    findUnique.mockResolvedValue(runRow);
+    run.mockResolvedValue({
+      exitCode: 99,
+      stderr: '',
+      timedOut: false,
+      summary: {
+        httpReqs: 40,
+        failRate: 0.2,
+        p95Ms: 900,
+        avgMs: 400,
+        checksPassed: 32,
+        checksFailed: 8,
+      },
+    });
+
+    await executor.execute('run-1');
+
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: StressTestStatus.FAILED,
+          error: 'k6 thresholds failed',
+        }),
+      }),
+    );
+  });
+
+  it('marks a timed-out k6 process as failed', async () => {
+    findUnique.mockResolvedValue(runRow);
+    run.mockResolvedValue({
+      exitCode: 1,
+      stderr: '',
+      timedOut: true,
+      summary: null,
+    });
+
+    await executor.execute('run-1');
+
+    expect(runUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: StressTestStatus.FAILED,
+          error: 'k6 timed out',
+        }),
+      }),
+    );
+  });
+
+  it('skips a missing run', async () => {
+    findUnique.mockResolvedValue(null);
+
+    await executor.execute('missing');
+
+    expect(run).not.toHaveBeenCalled();
+  });
 });

@@ -20,7 +20,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "prisma db push --url 'file:./data/test.sqlite' && NODE_OPTIONS='--experimental-vm-modules' jest --config ./test/jest-e2e.json",
-    "test:k6": "jest --testPathPatterns=k6-runner.live --no-coverage",
+    "test:k6": "jest --testPathPatterns='k6-runner.live|stress-test.live' --no-coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"

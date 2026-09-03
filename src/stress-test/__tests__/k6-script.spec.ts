@@ -38,4 +38,25 @@ describe('generateK6Script', () => {
     expect(script).not.toContain('http_req_duration');
     expect(script).toContain('"checks":["rate==1"]');
   });
+
+  it('emits HEAD and DELETE requests', () => {
+    expect(
+      generateK6Script({
+        url: 'https://example.com',
+        method: 'HEAD',
+        vus: 1,
+        durationSec: 5,
+        expectedStatus: 200,
+      }),
+    ).toContain(JSON.stringify('HEAD'));
+    expect(
+      generateK6Script({
+        url: 'https://example.com',
+        method: 'DELETE',
+        vus: 1,
+        durationSec: 5,
+        expectedStatus: 204,
+      }),
+    ).toContain(JSON.stringify('DELETE'));
+  });
 });

@@ -113,11 +113,88 @@ describe('StressTestService', () => {
     );
   });
 
+  it('updates an owned test and lists runs', async () => {
+    findFirst.mockResolvedValue(row);
+    update.mockResolvedValue({
+      ...row,
+      name: 'API load v2',
+      method: 'POST',
+      p95Ms: 200,
+    });
+    runFindMany.mockResolvedValue([
+      {
+        id: 'run-1',
+        stressTestId: 'st-1',
+        status: StressTestStatus.PASSED,
+        error: null,
+        summary: JSON.stringify({
+          httpReqs: 40,
+          failRate: 0,
+          p95Ms: 12,
+          avgMs: 8,
+          checksPassed: 40,
+          checksFailed: 0,
+        }),
+        startedAt: new Date('2026-01-01T00:00:00.000Z'),
+        finishedAt: new Date('2026-01-01T00:00:30.000Z'),
+      },
+    ]);
+
+    await expect(
+      service.updateForUser('user-1', 'st-1', {
+        name: 'API load v2',
+        method: 'POST',
+        p95Ms: 200,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        name: 'API load v2',
+        method: 'POST',
+        p95Ms: 200,
+      }),
+    );
+    await expect(service.listRunsForUser('user-1', 'st-1')).resolves.toEqual([
+      expect.objectContaining({
+        id: 'run-1',
+        status: StressTestStatus.PASSED,
+        summary: expect.objectContaining({ httpReqs: 40 }),
+      }),
+    ]);
+  });
+
+  it('falls back in-process when enqueue throws', async () => {
+    findFirst.mockResolvedValueOnce(row).mockResolvedValue({
+      ...row,
+      lastStatus: StressTestStatus.RUNNING,
+    });
+    runFindFirst.mockResolvedValue(null);
+    runCreate.mockResolvedValue({ id: 'run-1' });
+    update.mockResolvedValue({
+      ...row,
+      lastStatus: StressTestStatus.RUNNING,
+    });
+    jobs.enqueueStressTestRun.mockRejectedValue(new Error('redis down'));
+
+    await service.runForUser('user-1', 'st-1');
+
+    expect(execute).toHaveBeenCalledWith('run-1');
+  });
+
   it('rejects a non-http URL', async () => {
     await expect(
       service.createForUser('user-1', {
         name: 'Bad',
         url: 'ftp://example.com',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects an unsupported HTTP method', async () => {
+    await expect(
+      service.createForUser('user-1', {
+        name: 'Bad',
+        url: 'https://example.com',
+        method: 'TRACE',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
