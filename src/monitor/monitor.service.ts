@@ -11,14 +11,14 @@ import {
   serializeMonitorConfig,
   type MonitorConfigValue,
 } from './monitor-config';
-import {
-  DEFAULT_INTERVAL_SEC,
-  DEFAULT_TIMEOUT_MS,
-} from './monitor.constants';
+import { DEFAULT_INTERVAL_SEC, DEFAULT_TIMEOUT_MS } from './monitor.constants';
 import { MonitorRunnerService } from './monitor-runner.service';
 import { MonitorStatus } from './monitor-status';
 import { MonitorType } from './monitor-type';
-import { resolveMonitorConfig } from './resolve-monitor-config';
+import {
+  resolveMonitorConfig,
+  hasMonitorConfigUpdate,
+} from './resolve-monitor-config';
 
 const monitorSelect = {
   id: true,
@@ -83,7 +83,7 @@ export class MonitorService {
       throw new BadRequestException('Name is required');
     }
 
-    const config = resolveMonitorConfig(input.type, input);
+    const config = resolveMonitorConfig(input.type, input, true);
     const created = await this.prisma.monitor.create({
       data: {
         userId,
@@ -107,9 +107,7 @@ export class MonitorService {
   ): Promise<MonitorView> {
     const existing = await this.requireOwned(userId, id);
     const type = input.type ?? (existing.type as MonitorType);
-    const hasConfigUpdate = Boolean(
-      input.http || input.redis || input.database || input.tcp,
-    );
+    const hasConfigUpdate = hasMonitorConfigUpdate(input);
 
     if (type !== existing.type && !hasConfigUpdate) {
       throw new BadRequestException(
@@ -118,7 +116,7 @@ export class MonitorService {
     }
 
     const config = hasConfigUpdate
-      ? resolveMonitorConfig(type, input)
+      ? resolveMonitorConfig(type, input, true)
       : parseMonitorConfig(existing.config);
 
     const name = input.name?.trim();

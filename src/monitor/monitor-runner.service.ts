@@ -25,6 +25,23 @@ const monitorSelect = {
   updatedAt: true,
 } as const;
 
+type MonitorRow = {
+  id: string;
+  userId: string;
+  name: string;
+  type: MonitorType;
+  enabled: boolean;
+  intervalSec: number;
+  timeoutMs: number;
+  config: string;
+  lastStatus: MonitorStatus;
+  lastError: string | null;
+  lastLatencyMs: number | null;
+  lastCheckedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class MonitorRunnerService {
   private readonly inFlight = new Set<string>();
@@ -46,52 +63,32 @@ export class MonitorRunnerService {
       if (!isMonitorDue(monitor) || this.inFlight.has(monitor.id)) {
         continue;
       }
-      await this.run(monitor.id);
+
+      try {
+        await this.run(monitor.id);
+      } catch (error) {
+        const stack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(
+          `Scheduled check failed for monitor ${monitor.id}`,
+          stack,
+          MonitorRunnerService.name,
+        );
+      }
     }
   }
 
-  async run(id: string): Promise<{
-    id: string;
-    userId: string;
-    name: string;
-    type: MonitorType;
-    enabled: boolean;
-    intervalSec: number;
-    timeoutMs: number;
-    config: string;
-    lastStatus: MonitorStatus;
-    lastError: string | null;
-    lastLatencyMs: number | null;
-    lastCheckedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }> {
+  async run(id: string): Promise<MonitorRow> {
     if (this.inFlight.has(id)) {
-      const current = await this.prisma.monitor.findUnique({
-        where: { id },
-        select: monitorSelect,
-      });
-      if (!current) {
-        throw new NotFoundException('Monitor not found');
-      }
-      return current as Awaited<ReturnType<MonitorRunnerService['run']>>;
+      return this.requireById(id);
     }
 
     this.inFlight.add(id);
 
     try {
-      const monitor = await this.prisma.monitor.findUnique({
-        where: { id },
-        select: monitorSelect,
-      });
-
-      if (!monitor) {
-        throw new NotFoundException('Monitor not found');
-      }
-
-      const previousStatus = monitor.lastStatus as MonitorStatus;
+      const monitor = await this.requireById(id);
+      const previousStatus = monitor.lastStatus;
       const result = await this.probe.probe(
-        monitor.type as MonitorType,
+        monitor.type,
         parseMonitorConfig(monitor.config),
         monitor.timeoutMs,
       );
@@ -120,10 +117,23 @@ export class MonitorRunnerService {
         MonitorRunnerService.name,
       );
 
-      return updated as Awaited<ReturnType<MonitorRunnerService['run']>>;
+      return updated as MonitorRow;
     } finally {
       this.inFlight.delete(id);
     }
+  }
+
+  private async requireById(id: string): Promise<MonitorRow> {
+    const monitor = await this.prisma.monitor.findUnique({
+      where: { id },
+      select: monitorSelect,
+    });
+
+    if (!monitor) {
+      throw new NotFoundException('Monitor not found');
+    }
+
+    return monitor as MonitorRow;
   }
 
   private async notifyStatusChange(
@@ -141,21 +151,31 @@ export class MonitorRunnerService {
       return;
     }
 
-    if (next === MonitorStatus.DOWN) {
-      await this.notifications.createForUser(userId, {
-        type: NotificationType.ALERT,
-        title: `${name} is down`,
-        body: error ?? `${name} failed a health check`,
-      });
-      return;
-    }
+    try {
+      if (next === MonitorStatus.DOWN) {
+        await this.notifications.createForUser(userId, {
+          type: NotificationType.ALERT,
+          title: `${name} is down`,
+          body: error ?? `${name} failed a health check`,
+        });
+        return;
+      }
 
-    if (previous === MonitorStatus.DOWN && next === MonitorStatus.UP) {
-      await this.notifications.createForUser(userId, {
-        type: NotificationType.SUCCESS,
-        title: `${name} recovered`,
-        body: `${name} is responding again`,
-      });
+      if (previous === MonitorStatus.DOWN && next === MonitorStatus.UP) {
+        await this.notifications.createForUser(userId, {
+          type: NotificationType.SUCCESS,
+          title: `${name} recovered`,
+          body: `${name} is responding again`,
+        });
+      }
+    } catch (notifyError) {
+      const stack =
+        notifyError instanceof Error ? notifyError.stack : undefined;
+      this.logger.error(
+        `Failed to notify status change for ${name}`,
+        stack,
+        MonitorRunnerService.name,
+      );
     }
   }
 }

@@ -9,7 +9,7 @@ export type MonitorConfigValue = {
 export function parseMonitorConfig(raw: string): MonitorConfigValue {
   try {
     const parsed = JSON.parse(raw) as MonitorConfigValue;
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return {};
     }
     return parsed;
@@ -32,7 +32,83 @@ export function isMonitorDue(
   return monitor.lastCheckedAt.getTime() + monitor.intervalSec * 1000 <= now;
 }
 
-export function clipError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+export function clipError(message: string): string {
   return message.slice(0, 500);
+}
+
+export function sanitizeErrorMessage(message: string): string {
+  return message
+    .replace(
+      /([a-z][a-z0-9+.-]*):\/\/([^/@\s]+):([^/@\s]+)@/gi,
+      '$1://***:***@',
+    )
+    .replace(/(password|pwd|secret)=([^&\s]+)/gi, '$1=***');
+}
+
+export function formatProbeError(error: unknown): string {
+  const mapped = mapKnownError(error) ?? mapKnownError(errorCause(error));
+  if (mapped) {
+    return mapped;
+  }
+
+  const raw = error instanceof Error ? error.message : String(error);
+  if (/fetch failed/i.test(raw) || /failed to fetch/i.test(raw)) {
+    return 'Request failed';
+  }
+
+  return clipError(sanitizeErrorMessage(raw || 'Check failed'));
+}
+
+function errorCause(error: unknown): unknown {
+  if (typeof error === 'object' && error && 'cause' in error) {
+    return (error as { cause: unknown }).cause;
+  }
+  return undefined;
+}
+
+function mapKnownError(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const code =
+    'code' in error && error.code != null ? String(error.code) : undefined;
+  const name = error instanceof Error ? error.name : undefined;
+
+  if (
+    name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    code === 'ABORT_ERR' ||
+    code === 'ETIMEDOUT' ||
+    code === 'UND_ERR_CONNECT_TIMEOUT'
+  ) {
+    return 'Request timed out';
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return 'Host could not be resolved';
+  }
+  if (code === 'ECONNREFUSED') {
+    return 'Connection refused';
+  }
+  if (code === 'ECONNRESET') {
+    return 'Connection reset';
+  }
+  if (code === 'EHOSTUNREACH' || code === 'ENETUNREACH') {
+    return 'Host unreachable';
+  }
+  if (
+    code === 'CERT_HAS_EXPIRED' ||
+    code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+  ) {
+    return 'TLS certificate error';
+  }
+
+  return undefined;
+}
+
+export function clampTimeoutMs(timeoutMs: number, fallback: number): number {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return fallback;
+  }
+  return Math.min(30_000, Math.max(1_000, Math.trunc(timeoutMs)));
 }

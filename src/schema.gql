@@ -7,6 +7,23 @@ type AuthPayload {
   user: User!
 }
 
+input CreateMonitorInput {
+  database: DatabaseMonitorConfigInput
+  enabled: Boolean
+  http: HttpMonitorConfigInput
+  intervalSec: Int
+  name: String!
+  redis: RedisMonitorConfigInput
+  tcp: TcpMonitorConfigInput
+  timeoutMs: Int
+  type: MonitorType!
+}
+
+input DatabaseMonitorConfigInput {
+  """postgres://, mysql://, or file: SQLite connection URL"""
+  url: String!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -18,12 +35,63 @@ type HealthPayload {
   timestamp: String!
 }
 
+input HttpMonitorConfigInput {
+  expectedStatus: Int
+  method: String
+  url: String!
+}
+
 input LoginInput {
   email: String!
   password: String!
 }
 
+type Monitor {
+  config: MonitorConfig!
+  createdAt: DateTime!
+  enabled: Boolean!
+  id: String!
+  intervalSec: Int!
+  lastCheckedAt: DateTime
+  lastError: String
+  lastLatencyMs: Int
+  lastStatus: MonitorStatus!
+  name: String!
+  timeoutMs: Int!
+  type: MonitorType!
+  updatedAt: DateTime!
+}
+
+type MonitorConfig {
+  expectedStatus: Int
+  host: String
+  method: String
+  port: Int
+  url: String
+}
+
+"""Latest probe result for a monitor"""
+enum MonitorStatus {
+  DOWN
+  UNKNOWN
+  UP
+}
+
+"""What PulseWatch should probe"""
+enum MonitorType {
+  DATABASE
+  HTTP
+  REDIS
+  TCP
+}
+
 type Mutation {
+  """Create a monitor"""
+  createMonitor(input: CreateMonitorInput!): Monitor!
+
+  """Delete a monitor"""
+  deleteMonitor(id: String!): Boolean!
+
   """Sign in and receive a JWT"""
   login(input: LoginInput!): AuthPayload!
 
@@ -35,6 +103,12 @@ type Mutation {
 
   """Create an account"""
   register(input: RegisterInput!): AuthPayload!
+
+  """Run a monitor check immediately"""
+  runMonitorCheck(id: String!): Monitor!
+
+  """Update a monitor"""
+  updateMonitor(id: String!, input: UpdateMonitorInput!): Monitor!
 }
 
 type Notification {
@@ -61,11 +135,22 @@ type Query {
   """Currently authenticated user"""
   me: User!
 
+  """A single monitor owned by the signed-in user"""
+  monitor(id: String!): Monitor!
+
+  """Monitors owned by the signed-in user"""
+  monitors: [Monitor!]!
+
   """Notifications for the signed-in user, newest first"""
   notifications(unreadOnly: Boolean): [Notification!]!
 
   """Unread notification count for the signed-in user"""
   unreadNotificationCount: Int!
+}
+
+input RedisMonitorConfigInput {
+  """redis:// or rediss:// connection URL"""
+  url: String!
 }
 
 input RegisterInput {
@@ -80,6 +165,23 @@ type Subscription {
 
   """Emits when the signed-in user receives a notification"""
   notificationReceived: Notification!
+}
+
+input TcpMonitorConfigInput {
+  host: String!
+  port: Int!
+}
+
+input UpdateMonitorInput {
+  database: DatabaseMonitorConfigInput
+  enabled: Boolean
+  http: HttpMonitorConfigInput
+  intervalSec: Int
+  name: String
+  redis: RedisMonitorConfigInput
+  tcp: TcpMonitorConfigInput
+  timeoutMs: Int
+  type: MonitorType
 }
 
 type User {

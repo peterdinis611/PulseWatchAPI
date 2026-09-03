@@ -4,20 +4,25 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
-  MinLength,
+  Validate,
   ValidateNested,
 } from 'class-validator';
+import { Trim } from '../../common/trim';
 import {
   MAX_INTERVAL_SEC,
+  MAX_MONITOR_NAME_LENGTH,
   MAX_TIMEOUT_MS,
   MIN_INTERVAL_SEC,
   MIN_TIMEOUT_MS,
 } from '../monitor.constants';
 import { MonitorType } from '../monitor-type';
+import { MonitorCreateConfigConstraint } from '../validation/monitor-type-config.constraint';
 import {
   DatabaseMonitorConfigInput,
   HttpMonitorConfigInput,
@@ -28,12 +33,17 @@ import {
 @InputType()
 export class CreateMonitorInput {
   @Field()
+  @Trim()
   @IsString()
-  @MinLength(1)
+  @IsNotEmpty({ message: 'Name is required' })
+  @MaxLength(MAX_MONITOR_NAME_LENGTH)
   name!: string;
 
   @Field(() => MonitorType)
-  @IsEnum(MonitorType)
+  @IsEnum(MonitorType, {
+    message: 'type must be HTTP, REDIS, DATABASE, or TCP',
+  })
+  @Validate(MonitorCreateConfigConstraint)
   type!: MonitorType;
 
   @Field(() => Int, { nullable: true })

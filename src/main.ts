@@ -1,9 +1,9 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
+import { createAppValidationPipe } from './common/create-validation-pipe';
 import { LoggerService } from './logger/logger.service';
 
 async function bootstrap() {
@@ -17,13 +17,7 @@ async function bootstrap() {
   const port = config.get<number>('PORT', 4000);
 
   app.enableCors();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(createAppValidationPipe());
 
   await app.listen(port);
   logger.log(`Listening on port ${port}`, 'Bootstrap');

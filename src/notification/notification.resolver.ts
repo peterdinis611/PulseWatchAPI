@@ -9,6 +9,7 @@ import {
 } from '@nestjs/graphql';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { UuidArgs } from '../common/uuid-args';
 import { PubSubService } from '../pubsub/pubsub.service';
 import type { PublicUser } from '../user/public-user';
 import { notificationReceivedTrigger } from './notification.events';
@@ -51,7 +52,7 @@ export class NotificationResolver {
   @UseGuards(GqlAuthGuard)
   markNotificationRead(
     @CurrentUser() user: PublicUser,
-    @Args('id') id: string,
+    @UuidArgs() id: string,
   ): Promise<NotificationRecord> {
     return this.notificationService.markRead(user.id, id);
   }

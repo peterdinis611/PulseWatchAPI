@@ -41,10 +41,23 @@ describe('resolveMonitorConfig', () => {
     ).toEqual({ host: '127.0.0.1', port: 4000 });
   });
 
-  it('rejects a Redis URL that is not redis://', () => {
+  it('rejects extra config, empty SQLite paths and invalid TCP hosts', () => {
     expect(() =>
-      resolveMonitorConfig(MonitorType.REDIS, {
-        redis: { url: 'http://localhost:6379' },
+      resolveMonitorConfig(MonitorType.HTTP, {
+        http: { url: 'https://example.com/health' },
+        redis: { url: 'redis://localhost:6379' },
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      resolveMonitorConfig(MonitorType.DATABASE, {
+        database: { url: 'file:' },
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      resolveMonitorConfig(MonitorType.TCP, {
+        tcp: { host: 'example.com:80', port: 80 },
       }),
     ).toThrow(BadRequestException);
   });

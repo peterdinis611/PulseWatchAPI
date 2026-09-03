@@ -2,6 +2,7 @@ import { UseGuards } from '@nestjs/common';
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
+import { UuidArgs } from '../common/uuid-args';
 import type { PublicUser } from '../user/public-user';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
@@ -26,7 +27,7 @@ export class MonitorResolver {
   @UseGuards(GqlAuthGuard)
   monitor(
     @CurrentUser() user: PublicUser,
-    @Args('id') id: string,
+    @UuidArgs() id: string,
   ): Promise<MonitorView> {
     return this.monitorService.findForUser(user.id, id);
   }
@@ -44,7 +45,7 @@ export class MonitorResolver {
   @UseGuards(GqlAuthGuard)
   updateMonitor(
     @CurrentUser() user: PublicUser,
-    @Args('id') id: string,
+    @UuidArgs() id: string,
     @Args('input') input: UpdateMonitorInput,
   ): Promise<MonitorView> {
     return this.monitorService.updateForUser(user.id, id, input);
@@ -54,7 +55,7 @@ export class MonitorResolver {
   @UseGuards(GqlAuthGuard)
   deleteMonitor(
     @CurrentUser() user: PublicUser,
-    @Args('id') id: string,
+    @UuidArgs() id: string,
   ): Promise<boolean> {
     return this.monitorService.deleteForUser(user.id, id);
   }
@@ -65,7 +66,7 @@ export class MonitorResolver {
   @UseGuards(GqlAuthGuard)
   runMonitorCheck(
     @CurrentUser() user: PublicUser,
-    @Args('id') id: string,
+    @UuidArgs() id: string,
   ): Promise<MonitorView> {
     return this.monitorService.checkForUser(user.id, id);
   }
