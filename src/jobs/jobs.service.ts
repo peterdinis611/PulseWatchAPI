@@ -7,19 +7,29 @@ import {
   type MonitorCheckJobData,
   monitorCheckSchedulerId,
 } from './monitor-check.job';
+import {
+  STRESS_TEST_JOB,
+  STRESS_TEST_QUEUE,
+  type StressTestJobData,
+} from './stress-test.job';
 
 export const MONITOR_CHECK_QUEUE_TOKEN = 'MONITOR_CHECK_QUEUE';
+export const STRESS_TEST_QUEUE_TOKEN = 'STRESS_TEST_QUEUE';
 
 export type MonitorCheckQueue = Pick<
   Queue<MonitorCheckJobData>,
   'upsertJobScheduler' | 'removeJobScheduler'
 >;
 
+export type StressTestQueue = Pick<Queue<StressTestJobData>, 'add'>;
+
 @Injectable()
 export class JobsService {
   constructor(
     @Inject(MONITOR_CHECK_QUEUE_TOKEN)
     private readonly queue: MonitorCheckQueue | null,
+    @Inject(STRESS_TEST_QUEUE_TOKEN)
+    private readonly stressQueue: StressTestQueue | null,
     private readonly logger: LoggerService,
   ) {}
 
@@ -60,5 +70,19 @@ export class JobsService {
       `Removed ${MONITOR_CHECK_QUEUE} scheduler for ${monitorId}`,
       JobsService.name,
     );
+  }
+
+  async enqueueStressTestRun(runId: string): Promise<boolean> {
+    if (!this.stressQueue) {
+      return false;
+    }
+
+    await this.stressQueue.add(STRESS_TEST_JOB, { runId }, { jobId: runId });
+
+    this.logger.debug(
+      `Enqueued ${STRESS_TEST_QUEUE} run ${runId}`,
+      JobsService.name,
+    );
+    return true;
   }
 }

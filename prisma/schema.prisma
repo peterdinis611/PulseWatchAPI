@@ -42,6 +42,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   notifications Notification[]
   monitors      Monitor[]
+  stressTests   StressTest[]
 }
 
 model Notification {
@@ -76,4 +77,47 @@ model Monitor {
 
   @@index([userId, createdAt])
   @@index([enabled, lastCheckedAt])
+}
+
+enum StressTestStatus {
+  IDLE
+  RUNNING
+  PASSED
+  FAILED
+}
+
+model StressTest {
+  id             String           @id @default(uuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  url            String
+  method         String           @default("GET")
+  vus            Int              @default(10)
+  durationSec    Int              @default(30)
+  expectedStatus Int              @default(200)
+  p95Ms          Int?
+  maxFailRate    Float?
+  lastStatus     StressTestStatus @default(IDLE)
+  lastError      String?
+  lastSummary    String?
+  lastRunAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  runs           StressTestRun[]
+
+  @@index([userId, createdAt])
+}
+
+model StressTestRun {
+  id           String           @id @default(uuid())
+  stressTestId String
+  stressTest   StressTest       @relation(fields: [stressTestId], references: [id], onDelete: Cascade)
+  status       StressTestStatus
+  error        String?
+  summary      String?
+  startedAt    DateTime         @default(now())
+  finishedAt   DateTime?
+
+  @@index([stressTestId, startedAt])
 }

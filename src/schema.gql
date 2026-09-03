@@ -24,6 +24,17 @@ input CreateMonitorInput {
   type: MonitorType!
 }
 
+input CreateStressTestInput {
+  durationSec: Int = 30
+  expectedStatus: Int = 200
+  maxFailRate: Float
+  method: String
+  name: String!
+  p95Ms: Int
+  url: String!
+  vus: Int = 10
+}
+
 input DatabaseMonitorConfigInput {
   """postgres://, mysql://, or file: SQLite connection URL"""
   url: String!
@@ -156,8 +167,14 @@ type Mutation {
   """Create a monitor"""
   createMonitor(input: CreateMonitorInput!): Monitor!
 
+  """Create a k6 stress test"""
+  createStressTest(input: CreateStressTestInput!): StressTest!
+
   """Delete a monitor"""
   deleteMonitor(id: String!): Boolean!
+
+  """Delete a k6 stress test"""
+  deleteStressTest(id: String!): Boolean!
 
   """Sign in and receive a JWT"""
   login(input: LoginInput!): AuthPayload!
@@ -174,8 +191,16 @@ type Mutation {
   """Run a monitor check immediately"""
   runMonitorCheck(id: String!): Monitor!
 
+  """
+  Start a k6 run. Returns immediately with RUNNING; results land on lastStatus.
+  """
+  runStressTest(id: String!): StressTest!
+
   """Update a monitor"""
   updateMonitor(id: String!, input: UpdateMonitorInput!): Monitor!
+
+  """Update a k6 stress test"""
+  updateStressTest(id: String!, input: UpdateStressTestInput!): StressTest!
 }
 
 type Notification {
@@ -210,6 +235,15 @@ type Query {
 
   """Notifications for the signed-in user, newest first"""
   notifications(unreadOnly: Boolean): [Notification!]!
+
+  """A single k6 stress test owned by the signed-in user"""
+  stressTest(id: String!): StressTest!
+
+  """Past k6 runs for a stress test"""
+  stressTestRuns(id: String!): [StressTestRun!]!
+
+  """k6 stress tests owned by the signed-in user"""
+  stressTests: [StressTest!]!
 
   """Unread notification count for the signed-in user"""
   unreadNotificationCount: Int!
@@ -252,6 +286,51 @@ input SslMonitorConfigInput {
   serverName: String
 }
 
+type StressTest {
+  createdAt: DateTime!
+  durationSec: Int!
+  expectedStatus: Int!
+  id: String!
+  lastError: String
+  lastRunAt: DateTime
+  lastStatus: StressTestStatus!
+  lastSummary: StressTestSummary
+  maxFailRate: Float
+  method: String!
+  name: String!
+  p95Ms: Int
+  updatedAt: DateTime!
+  url: String!
+  vus: Int!
+}
+
+type StressTestRun {
+  error: String
+  finishedAt: DateTime
+  id: String!
+  startedAt: DateTime!
+  status: StressTestStatus!
+  stressTestId: String!
+  summary: StressTestSummary
+}
+
+"""Latest k6 run result for a stress test"""
+enum StressTestStatus {
+  FAILED
+  IDLE
+  PASSED
+  RUNNING
+}
+
+type StressTestSummary {
+  avgMs: Float
+  checksFailed: Int
+  checksPassed: Int
+  failRate: Float
+  httpReqs: Int
+  p95Ms: Float
+}
+
 type Subscription {
   """Emits whenever a health check runs"""
   healthUpdated: HealthPayload!
@@ -280,6 +359,17 @@ input UpdateMonitorInput {
   tcp: TcpMonitorConfigInput
   timeoutMs: Int
   type: MonitorType
+}
+
+input UpdateStressTestInput {
+  durationSec: Int
+  expectedStatus: Int
+  maxFailRate: Float
+  method: String
+  name: String
+  p95Ms: Int
+  url: String
+  vus: Int
 }
 
 type User {

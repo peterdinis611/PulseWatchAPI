@@ -14,6 +14,7 @@ import { CacheModule } from '../cache/cache.module';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationModule } from '../notification/notification.module';
 import { MonitorModule } from '../monitor/monitor.module';
+import { StressTestModule } from '../stress-test/stress-test.module';
 import { UserModule } from '../user/user.module';
 import { AppController } from './app.controller';
 
@@ -48,6 +49,7 @@ import { AppController } from './app.controller';
     AuthModule,
     NotificationModule,
     MonitorModule,
+    StressTestModule,
   ],
   controllers: [AppController],
 })

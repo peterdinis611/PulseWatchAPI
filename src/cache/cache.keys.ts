@@ -9,4 +9,8 @@ export const CacheKeys = {
     `notifications:${userId}:list:${unreadOnly ? 'unread' : 'all'}`,
   notificationsUnreadCount: (userId: string): string =>
     `notifications:${userId}:unreadCount`,
+  stressTestsPrefix: (userId: string): string => `stressTests:${userId}:`,
+  stressTestsList: (userId: string): string => `stressTests:${userId}:list`,
+  stressTestItem: (userId: string, id: string): string =>
+    `stressTests:${userId}:item:${id}`,
 };

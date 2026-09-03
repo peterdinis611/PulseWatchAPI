@@ -6,6 +6,7 @@ import { PubSubModule } from '../../pubsub/pubsub.module';
 import { AuthModule } from '../../auth/auth.module';
 import { NotificationModule } from '../../notification/notification.module';
 import { MonitorModule } from '../../monitor/monitor.module';
+import { StressTestModule } from '../../stress-test/stress-test.module';
 import { CacheModule } from '../../cache/cache.module';
 import { JobsModule } from '../../jobs/jobs.module';
 import { UserModule } from '../../user/user.module';
@@ -22,7 +23,7 @@ describe('AppModule', () => {
     expect(controllers).toEqual(expect.arrayContaining([AppController]));
   });
 
-  it('imports Prisma, Health, Logger, PubSub, Cache, Jobs, User, Auth, Notification and Monitor modules', () => {
+  it('imports Prisma, Health, Logger, PubSub, Cache, Jobs, User, Auth, Notification, Monitor and StressTest modules', () => {
     const imports = Reflect.getMetadata(
       MODULE_METADATA.IMPORTS,
       AppModule,
@@ -40,6 +41,7 @@ describe('AppModule', () => {
         AuthModule,
         NotificationModule,
         MonitorModule,
+        StressTestModule,
       ]),
     );
   });

@@ -4,8 +4,13 @@ import { BullModule, getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { areJobsEnabled } from './are-jobs-enabled';
 import { DEFAULT_REDIS_URL, JOBS_REDIS_PREFIX } from './jobs.constants';
-import { JobsService, MONITOR_CHECK_QUEUE_TOKEN } from './jobs.service';
+import {
+  JobsService,
+  MONITOR_CHECK_QUEUE_TOKEN,
+  STRESS_TEST_QUEUE_TOKEN,
+} from './jobs.service';
 import { MONITOR_CHECK_QUEUE } from './monitor-check.job';
+import { STRESS_TEST_QUEUE } from './stress-test.job';
 import { redisConnectionFromUrl } from './parse-redis-url';
 
 const jobsEnabled = areJobsEnabled();
@@ -27,10 +32,11 @@ const bullImports = jobsEnabled
         }),
       }),
       BullModule.registerQueue({ name: MONITOR_CHECK_QUEUE }),
+      BullModule.registerQueue({ name: STRESS_TEST_QUEUE }),
     ]
   : [];
 
-const queueProvider = jobsEnabled
+const monitorQueueProvider = jobsEnabled
   ? {
       provide: MONITOR_CHECK_QUEUE_TOKEN,
       useFactory: (queue: Queue) => queue,
@@ -41,10 +47,21 @@ const queueProvider = jobsEnabled
       useValue: null,
     };
 
+const stressQueueProvider = jobsEnabled
+  ? {
+      provide: STRESS_TEST_QUEUE_TOKEN,
+      useFactory: (queue: Queue) => queue,
+      inject: [getQueueToken(STRESS_TEST_QUEUE)],
+    }
+  : {
+      provide: STRESS_TEST_QUEUE_TOKEN,
+      useValue: null,
+    };
+
 @Global()
 @Module({
   imports: bullImports,
-  providers: [JobsService, queueProvider],
+  providers: [JobsService, monitorQueueProvider, stressQueueProvider],
   exports: [JobsService],
 })
 export class JobsModule {}
