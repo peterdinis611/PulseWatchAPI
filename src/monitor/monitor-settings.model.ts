@@ -24,5 +24,11 @@ export class MonitorSettings {
   alertEmail!: string | null;
 
   @Field()
+  fleetAlertsMuted!: boolean;
+
+  @Field(() => Date, { nullable: true })
+  maintenanceUntil!: Date | null;
+
+  @Field()
   updatedAt!: Date;
 }

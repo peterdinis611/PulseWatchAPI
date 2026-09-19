@@ -45,7 +45,7 @@ export class UpdateMonitorSettingsInput {
   @IsBoolean()
   notifyOnRecover?: boolean;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     value === '' ? null : value,
@@ -56,7 +56,7 @@ export class UpdateMonitorSettingsInput {
   @IsUrl({ require_tld: false }, { message: 'Webhook URL must be valid' })
   webhookUrl?: string | null;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     value === '' ? null : value,
@@ -67,7 +67,7 @@ export class UpdateMonitorSettingsInput {
   @IsUrl({ require_tld: false }, { message: 'Slack webhook URL must be valid' })
   slackWebhookUrl?: string | null;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     value === '' ? null : value,
@@ -77,4 +77,13 @@ export class UpdateMonitorSettingsInput {
   @MaxLength(320)
   @IsEmail({}, { message: 'Alert email must be valid' })
   alertEmail?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  fleetAlertsMuted?: boolean;
+
+  @Field(() => Date, { nullable: true })
+  @IsOptional()
+  maintenanceUntil?: Date | null;
 }

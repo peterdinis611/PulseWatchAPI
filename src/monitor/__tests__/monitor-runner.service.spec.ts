@@ -5,8 +5,10 @@ import { createTestCacheService } from '../../cache/__tests__/create-test-cache'
 import { NotificationType } from '../../notification/notification-type';
 import { NotificationService } from '../../notification/notification.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PubSubService } from '../../pubsub/pubsub.service';
 import { MonitorCheckHistoryService } from '../monitor-check-history.service';
 import { MonitorProbeService } from '../monitor-probe.service';
+import { MonitorAlertService } from '../monitor-alert.service';
 import { MonitorRunnerService } from '../monitor-runner.service';
 import { AlertDeliveryService } from '../../notification/alert-delivery.service';
 import { MonitorSettingsService } from '../monitor-settings.service';
@@ -23,6 +25,8 @@ describe('MonitorRunnerService', () => {
   let createForUser: jest.Mock;
   let record: jest.Mock;
   let deliver: jest.Mock;
+  let shouldNotify: jest.Mock;
+  let recordNotified: jest.Mock;
   let settings: ReturnType<typeof createTestMonitorSettingsService>;
 
   const monitor = {
@@ -31,6 +35,7 @@ describe('MonitorRunnerService', () => {
     name: 'API',
     type: MonitorType.HTTP,
     enabled: true,
+    alertsMuted: false,
     intervalSec: 60,
     timeoutMs: 1000,
     config: JSON.stringify({
@@ -42,6 +47,8 @@ describe('MonitorRunnerService', () => {
     lastError: null,
     lastLatencyMs: 12,
     lastCheckedAt: new Date('2026-01-01T00:00:00.000Z'),
+    lastDownNotifiedAt: null,
+    lastRecoverNotifiedAt: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
@@ -54,6 +61,8 @@ describe('MonitorRunnerService', () => {
     createForUser = jest.fn().mockResolvedValue({});
     record = jest.fn().mockResolvedValue(undefined);
     deliver = jest.fn().mockResolvedValue(undefined);
+    shouldNotify = jest.fn().mockReturnValue(true);
+    recordNotified = jest.fn().mockResolvedValue(undefined);
     settings = createTestMonitorSettingsService();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -92,6 +101,14 @@ describe('MonitorRunnerService', () => {
         {
           provide: MonitorSettingsService,
           useValue: settings,
+        },
+        {
+          provide: MonitorAlertService,
+          useValue: { shouldNotify, recordNotified },
+        },
+        {
+          provide: PubSubService,
+          useValue: { publish: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

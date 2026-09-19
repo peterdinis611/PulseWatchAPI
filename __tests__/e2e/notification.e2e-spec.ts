@@ -6,8 +6,8 @@ process.env.JWT_EXPIRES_IN = '1h';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { NotificationType } from '../src/notification/notification-type';
-import { NotificationService } from '../src/notification/notification.service';
+import { NotificationType } from '../../src/notification/notification-type';
+import { NotificationService } from '../../src/notification/notification.service';
 import { createTestingApp } from './create-testing-app';
 
 interface GraphQLBody<T> {

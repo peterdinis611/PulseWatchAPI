@@ -15,6 +15,8 @@ const settingsSelect = {
   webhookUrl: true,
   slackWebhookUrl: true,
   alertEmail: true,
+  fleetAlertsMuted: true,
+  maintenanceUntil: true,
   updatedAt: true,
 } as const;
 
@@ -26,6 +28,8 @@ export type MonitorSettingsView = {
   webhookUrl: string | null;
   slackWebhookUrl: string | null;
   alertEmail: string | null;
+  fleetAlertsMuted: boolean;
+  maintenanceUntil: Date | null;
   updatedAt: Date;
 };
 
@@ -59,6 +63,8 @@ export class MonitorSettingsService {
         webhookUrl: input.webhookUrl ?? null,
         slackWebhookUrl: input.slackWebhookUrl ?? null,
         alertEmail: input.alertEmail ?? null,
+        fleetAlertsMuted: input.fleetAlertsMuted ?? false,
+        maintenanceUntil: input.maintenanceUntil ?? null,
       },
       update: {
         ...(input.defaultIntervalSec !== undefined
@@ -81,6 +87,12 @@ export class MonitorSettingsService {
           : {}),
         ...(input.alertEmail !== undefined
           ? { alertEmail: input.alertEmail || null }
+          : {}),
+        ...(input.fleetAlertsMuted !== undefined
+          ? { fleetAlertsMuted: input.fleetAlertsMuted }
+          : {}),
+        ...(input.maintenanceUntil !== undefined
+          ? { maintenanceUntil: input.maintenanceUntil }
           : {}),
       },
       select: settingsSelect,
@@ -132,6 +144,8 @@ export class MonitorSettingsService {
     webhookUrl: string | null;
     slackWebhookUrl: string | null;
     alertEmail: string | null;
+    fleetAlertsMuted: boolean;
+    maintenanceUntil: Date | null;
     updatedAt: Date;
   }): MonitorSettingsView {
     return {
@@ -142,6 +156,8 @@ export class MonitorSettingsService {
       webhookUrl: row.webhookUrl,
       slackWebhookUrl: row.slackWebhookUrl,
       alertEmail: row.alertEmail,
+      fleetAlertsMuted: row.fleetAlertsMuted,
+      maintenanceUntil: row.maintenanceUntil,
       updatedAt: row.updatedAt,
     };
   }

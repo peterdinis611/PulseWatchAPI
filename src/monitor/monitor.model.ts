@@ -17,6 +17,9 @@ export class Monitor {
   @Field()
   enabled!: boolean;
 
+  @Field()
+  alertsMuted!: boolean;
+
   @Field(() => Int)
   intervalSec!: number;
 

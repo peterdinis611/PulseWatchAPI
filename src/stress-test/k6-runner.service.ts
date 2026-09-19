@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { access } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,11 +26,29 @@ export type K6RunResult = {
 export class K6RunnerService {
   constructor(private readonly config: ConfigService) {}
 
+  async isInstalled(): Promise<boolean> {
+    const bin = this.binPath();
+    try {
+      await access(bin, constants.X_OK);
+      return true;
+    } catch {
+      return probeK6Version(bin);
+    }
+  }
+
+  statusMessage(installed: boolean): string | null {
+    return installed ? null : K6_NOT_INSTALLED;
+  }
+
+  private binPath(): string {
+    return this.config.get<string>('K6_BIN')?.trim() || DEFAULT_K6_BIN;
+  }
+
   async run(script: string, timeoutMs: number): Promise<K6RunResult> {
     const dir = await mkdtemp(join(tmpdir(), 'pulsewatch-k6-'));
     const scriptPath = join(dir, 'script.js');
     const summaryPath = join(dir, 'summary.json');
-    const bin = this.config.get<string>('K6_BIN')?.trim() || DEFAULT_K6_BIN;
+    const bin = this.binPath();
 
     try {
       await writeFile(scriptPath, script, 'utf8');
@@ -118,5 +138,13 @@ function spawnK6(
       child.kill('SIGTERM');
       killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
     }, timeoutMs);
+  });
+}
+
+function probeK6Version(bin: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(bin, ['version'], { stdio: 'ignore' });
+    child.on('error', () => resolve(false));
+    child.on('close', (code) => resolve(code === 0));
   });
 }

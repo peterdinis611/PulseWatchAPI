@@ -31,6 +31,8 @@ input CreateStressTestInput {
   method: String
   name: String!
   p95Ms: Int
+  scheduleEnabled: Boolean
+  scheduleIntervalSec: Int
   url: String!
   vus: Int = 10
 }
@@ -67,6 +69,13 @@ enum DnsRecordType {
   TXT
 }
 
+type FleetUptime {
+  avgUptimePercent: Float!
+  monitorCount: Int!
+  periodHours: Int!
+  totalChecks: Int!
+}
+
 input GrpcMonitorConfigInput {
   """Skip TLS certificate verification"""
   allowUnauthorized: Boolean
@@ -92,6 +101,11 @@ input HttpMonitorConfigInput {
   url: String!
 }
 
+type K6Status {
+  installed: Boolean!
+  message: String
+}
+
 input KafkaMonitorConfigInput {
   host: String!
   port: Int!
@@ -109,6 +123,7 @@ input LoginInput {
 }
 
 type Monitor {
+  alertsMuted: Boolean!
   config: MonitorConfig!
   createdAt: DateTime!
   enabled: Boolean!
@@ -122,6 +137,15 @@ type Monitor {
   timeoutMs: Int!
   type: MonitorType!
   updatedAt: DateTime!
+}
+
+type MonitorCheck {
+  checkedAt: DateTime!
+  error: String
+  id: String!
+  latencyMs: Int!
+  monitorId: String!
+  status: MonitorStatus!
 }
 
 type MonitorCheckResult {
@@ -151,11 +175,16 @@ type MonitorConfig {
 }
 
 type MonitorSettings {
+  alertEmail: String
   defaultIntervalSec: Int!
   defaultTimeoutMs: Int!
+  fleetAlertsMuted: Boolean!
+  maintenanceUntil: DateTime
   notifyOnDown: Boolean!
   notifyOnRecover: Boolean!
+  slackWebhookUrl: String
   updatedAt: DateTime!
+  webhookUrl: String
 }
 
 """Latest probe result for a monitor"""
@@ -176,6 +205,14 @@ enum MonitorType {
   SMTP
   SSL
   TCP
+}
+
+type MonitorUptime {
+  avgLatencyMs: Int
+  periodHours: Int!
+  totalChecks: Int!
+  upChecks: Int!
+  uptimePercent: Float!
 }
 
 type Mutation {
@@ -233,7 +270,9 @@ type Notification {
   body: String!
   createdAt: DateTime!
   id: String!
+  monitorId: String
   readAt: DateTime
+  stressTestId: String
   title: String!
   type: NotificationType!
 }
@@ -247,8 +286,14 @@ enum NotificationType {
 }
 
 type Query {
+  """Average fleet uptime over a time window"""
+  fleetUptime(hours: Int = 24): FleetUptime!
+
   """Application and SQLite connectivity check"""
   health: HealthPayload!
+
+  """Whether the k6 CLI is available on the API host"""
+  k6Status: K6Status!
 
   """Currently authenticated user"""
   me: User!
@@ -256,8 +301,14 @@ type Query {
   """A single monitor owned by the signed-in user"""
   monitor(id: String!): Monitor!
 
+  """Recent check history for a monitor"""
+  monitorChecks(hours: Int = 24, id: String!, limit: Int = 200): [MonitorCheck!]!
+
   """Monitor defaults and alert preferences for the signed-in user"""
   monitorSettings: MonitorSettings!
+
+  """Uptime summary for a monitor over a time window"""
+  monitorUptime(hours: Int = 24, id: String!): MonitorUptime!
 
   """Monitors owned by the signed-in user"""
   monitors: [Monitor!]!
@@ -328,6 +379,9 @@ type StressTest {
   method: String!
   name: String!
   p95Ms: Int
+  scheduleEnabled: Boolean!
+  scheduleIntervalSec: Int
+  scheduleLastRunAt: DateTime
   updatedAt: DateTime!
   url: String!
   vus: Int!
@@ -364,6 +418,9 @@ type Subscription {
   """Emits whenever a health check runs"""
   healthUpdated: HealthPayload!
 
+  """Emits when a monitor check updates one of the user monitors"""
+  monitorUpdated: Monitor!
+
   """Emits when the signed-in user receives a notification"""
   notificationReceived: Notification!
 }
@@ -374,6 +431,7 @@ input TcpMonitorConfigInput {
 }
 
 input UpdateMonitorInput {
+  alertsMuted: Boolean
   database: DatabaseMonitorConfigInput
   dns: DnsMonitorConfigInput
   enabled: Boolean
@@ -391,10 +449,15 @@ input UpdateMonitorInput {
 }
 
 input UpdateMonitorSettingsInput {
+  alertEmail: String
   defaultIntervalSec: Int
   defaultTimeoutMs: Int
+  fleetAlertsMuted: Boolean
+  maintenanceUntil: DateTime
   notifyOnDown: Boolean
   notifyOnRecover: Boolean
+  slackWebhookUrl: String
+  webhookUrl: String
 }
 
 input UpdateStressTestInput {
@@ -404,6 +467,8 @@ input UpdateStressTestInput {
   method: String
   name: String
   p95Ms: Int
+  scheduleEnabled: Boolean
+  scheduleIntervalSec: Int
   url: String
   vus: Int
 }

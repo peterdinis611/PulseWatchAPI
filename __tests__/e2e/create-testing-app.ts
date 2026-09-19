@@ -2,8 +2,8 @@ import { AddressInfo } from 'node:net';
 import { App } from 'supertest/types';
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from '../src/app/app.module';
-import { createAppValidationPipe } from '../src/common/create-validation-pipe';
+import { AppModule } from '../../src/app/app.module';
+import { createAppValidationPipe } from '../../src/common/create-validation-pipe';
 
 export async function createTestingApp(): Promise<INestApplication<App>> {
   process.env.NODE_ENV ??= 'test';

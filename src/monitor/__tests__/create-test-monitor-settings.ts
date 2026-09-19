@@ -12,6 +12,8 @@ export function createTestMonitorSettings(
     webhookUrl: null,
     slackWebhookUrl: null,
     alertEmail: null,
+    fleetAlertsMuted: false,
+    maintenanceUntil: null,
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
   };

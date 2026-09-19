@@ -13,5 +13,6 @@ export const MAX_CERT_EXPIRY_DAYS = 365;
 export const MAX_KAFKA_TOPIC_LENGTH = 249;
 export const MAX_GRPC_SERVICE_LENGTH = 200;
 export const MAX_EXPECTED_VALUE_LENGTH = 255;
+export const ALERT_COOLDOWN_SEC = 300;
 
 export type HttpMethod = (typeof HTTP_METHODS)[number];

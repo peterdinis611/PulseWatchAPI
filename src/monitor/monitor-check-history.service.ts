@@ -32,6 +32,13 @@ export type MonitorUptimeView = {
   avgLatencyMs: number | null;
 };
 
+export type FleetUptimeView = {
+  periodHours: number;
+  monitorCount: number;
+  totalChecks: number;
+  avgUptimePercent: number;
+};
+
 @Injectable()
 export class MonitorCheckHistoryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -131,6 +138,48 @@ export class MonitorCheckHistoryService {
       upChecks,
       uptimePercent,
       avgLatencyMs,
+    };
+  }
+
+  async fleetUptimeForUser(
+    userId: string,
+    hours = DEFAULT_UPTIME_HOURS,
+  ): Promise<FleetUptimeView> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const monitors = await this.prisma.monitor.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (monitors.length === 0) {
+      return {
+        periodHours: hours,
+        monitorCount: 0,
+        totalChecks: 0,
+        avgUptimePercent: 100,
+      };
+    }
+
+    const checks = await this.prisma.monitorCheck.findMany({
+      where: {
+        monitorId: { in: monitors.map((m) => m.id) },
+        checkedAt: { gte: since },
+      },
+      select: { status: true },
+    });
+
+    const totalChecks = checks.length;
+    const upChecks = checks.filter((c) => c.status === MonitorStatus.UP).length;
+    const avgUptimePercent =
+      totalChecks === 0
+        ? 100
+        : Math.round((upChecks / totalChecks) * 1000) / 10;
+
+    return {
+      periodHours: hours,
+      monitorCount: monitors.length,
+      totalChecks,
+      avgUptimePercent,
     };
   }
 

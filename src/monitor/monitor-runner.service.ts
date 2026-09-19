@@ -4,31 +4,19 @@ import { LoggerService } from '../logger/logger.service';
 import { NotificationType } from '../notification/notification-type';
 import { NotificationService } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PubSubService } from '../pubsub/pubsub.service';
 import { CacheService } from '../cache/cache.service';
 import { CacheKeys } from '../cache/cache.keys';
 import { isMonitorDue, parseMonitorConfig } from './monitor-config';
+import { MonitorAlertService } from './monitor-alert.service';
 import { MonitorCheckHistoryService } from './monitor-check-history.service';
 import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorSettingsService } from './monitor-settings.service';
 import { MonitorStatus } from './monitor-status';
 import { MonitorType } from './monitor-type';
-
-const monitorSelect = {
-  id: true,
-  userId: true,
-  name: true,
-  type: true,
-  enabled: true,
-  intervalSec: true,
-  timeoutMs: true,
-  config: true,
-  lastStatus: true,
-  lastError: true,
-  lastLatencyMs: true,
-  lastCheckedAt: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
+import { monitorAlertSelect } from './monitor.select';
+import { monitorUpdatedTrigger } from './monitor.events';
+import { mapMonitorRow } from './monitor-view';
 
 type MonitorRow = {
   id: string;
@@ -36,6 +24,7 @@ type MonitorRow = {
   name: string;
   type: MonitorType;
   enabled: boolean;
+  alertsMuted: boolean;
   intervalSec: number;
   timeoutMs: number;
   config: string;
@@ -43,6 +32,8 @@ type MonitorRow = {
   lastError: string | null;
   lastLatencyMs: number | null;
   lastCheckedAt: Date | null;
+  lastDownNotifiedAt: Date | null;
+  lastRecoverNotifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -56,16 +47,18 @@ export class MonitorRunnerService {
     private readonly probe: MonitorProbeService,
     private readonly notifications: NotificationService,
     private readonly alertDelivery: AlertDeliveryService,
+    private readonly alertPolicy: MonitorAlertService,
     private readonly history: MonitorCheckHistoryService,
     private readonly logger: LoggerService,
     private readonly cache: CacheService,
     private readonly settings: MonitorSettingsService,
+    private readonly pubSub: PubSubService,
   ) {}
 
   async checkDue(): Promise<void> {
     const monitors = await this.prisma.monitor.findMany({
       where: { enabled: true },
-      select: monitorSelect,
+      select: monitorAlertSelect,
     });
 
     for (const monitor of monitors) {
@@ -111,7 +104,7 @@ export class MonitorRunnerService {
           lastLatencyMs: result.latencyMs,
           lastCheckedAt: checkedAt,
         },
-        select: monitorSelect,
+        select: monitorAlertSelect,
       });
       this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(monitor.userId));
 
@@ -122,8 +115,12 @@ export class MonitorRunnerService {
         checkedAt,
       });
 
+      await this.pubSub.publish(monitorUpdatedTrigger(monitor.userId), {
+        monitorUpdated: mapMonitorRow(updated),
+      });
+
       await this.notifyStatusChange(
-        monitor.id,
+        updated as MonitorRow,
         monitor.userId,
         monitor.name,
         previousStatus,
@@ -145,7 +142,7 @@ export class MonitorRunnerService {
   private async requireById(id: string): Promise<MonitorRow> {
     const monitor = await this.prisma.monitor.findUnique({
       where: { id },
-      select: monitorSelect,
+      select: monitorAlertSelect,
     });
 
     if (!monitor) {
@@ -156,7 +153,7 @@ export class MonitorRunnerService {
   }
 
   private async notifyStatusChange(
-    monitorId: string,
+    monitor: MonitorRow,
     userId: string,
     name: string,
     previous: MonitorStatus,
@@ -178,26 +175,33 @@ export class MonitorRunnerService {
         if (!prefs.notifyOnDown) {
           return;
         }
+        if (!this.alertPolicy.shouldNotify(monitor, prefs, 'down')) {
+          return;
+        }
         const title = `${name} je dole`;
         const body = error ?? `${name} neprešiel kontrolou dostupnosti`;
         await this.notifications.createForUser(userId, {
           type: NotificationType.ALERT,
           title,
           body,
-          monitorId,
+          monitorId: monitor.id,
         });
         await this.alertDelivery.deliver(prefs, {
           type: NotificationType.ALERT,
           title,
           body,
-          monitorId,
+          monitorId: monitor.id,
           event: 'monitor.down',
         });
+        await this.alertPolicy.recordNotified(monitor.id, 'down');
         return;
       }
 
       if (previous === MonitorStatus.DOWN && next === MonitorStatus.UP) {
         if (!prefs.notifyOnRecover) {
+          return;
+        }
+        if (!this.alertPolicy.shouldNotify(monitor, prefs, 'recover')) {
           return;
         }
         const title = `${name} je opäť hore`;
@@ -206,15 +210,16 @@ export class MonitorRunnerService {
           type: NotificationType.SUCCESS,
           title,
           body,
-          monitorId,
+          monitorId: monitor.id,
         });
         await this.alertDelivery.deliver(prefs, {
           type: NotificationType.SUCCESS,
           title,
           body,
-          monitorId,
+          monitorId: monitor.id,
           event: 'monitor.recover',
         });
+        await this.alertPolicy.recordNotified(monitor.id, 'recover');
       }
     } catch (notifyError) {
       const stack =

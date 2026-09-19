@@ -71,6 +71,11 @@ export class UpdateMonitorInput {
   @IsBoolean()
   enabled?: boolean;
 
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  alertsMuted?: boolean;
+
   @Field(() => HttpMonitorConfigInput, { nullable: true })
   @IsOptional()
   @Validate(MonitorUpdateConfigConstraint)

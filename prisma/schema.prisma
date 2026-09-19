@@ -75,6 +75,9 @@ model Monitor {
   lastError     String?
   lastLatencyMs Int?
   lastCheckedAt DateTime?
+  alertsMuted   Boolean       @default(false)
+  lastDownNotifiedAt    DateTime?
+  lastRecoverNotifiedAt DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   checks        MonitorCheck[]
@@ -105,6 +108,8 @@ model UserMonitorSettings {
   webhookUrl         String?
   slackWebhookUrl    String?
   alertEmail         String?
+  fleetAlertsMuted   Boolean  @default(false)
+  maintenanceUntil   DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

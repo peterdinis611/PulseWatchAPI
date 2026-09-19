@@ -8,8 +8,8 @@ import { createClient } from 'graphql-ws';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import WebSocket from 'ws';
-import { NotificationType } from '../src/notification/notification-type';
-import { NotificationService } from '../src/notification/notification.service';
+import { NotificationType } from '../../src/notification/notification-type';
+import { NotificationService } from '../../src/notification/notification.service';
 import { createListeningTestingApp } from './create-testing-app';
 
 const NOTIFICATION_RECEIVED = `

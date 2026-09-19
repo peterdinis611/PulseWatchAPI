@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { areJobsEnabled } from '../jobs/are-jobs-enabled';
 import { NotificationModule } from '../notification/notification.module';
+import { MonitorAlertService } from './monitor-alert.service';
 import { MonitorCheckHistoryService } from './monitor-check-history.service';
 import { MonitorCheckProcessor } from './monitor-check.processor';
 import { MonitorJobsSyncService } from './monitor-jobs-sync.service';
@@ -26,6 +27,7 @@ const jobProviders = areJobsEnabled()
     MonitorSchedulerService,
     MonitorSettingsService,
     MonitorCheckHistoryService,
+    MonitorAlertService,
     ...jobProviders,
   ],
   exports: [MonitorService, MonitorSettingsService],

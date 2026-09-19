@@ -39,3 +39,18 @@ export class MonitorUptime {
   @Field(() => Int, { nullable: true })
   avgLatencyMs!: number | null;
 }
+
+@ObjectType()
+export class FleetUptime {
+  @Field(() => Int)
+  periodHours!: number;
+
+  @Field(() => Int)
+  monitorCount!: number;
+
+  @Field(() => Int)
+  totalChecks!: number;
+
+  @Field()
+  avgUptimePercent!: number;
+}

@@ -4,6 +4,7 @@ import { MonitorResolver } from '../monitor.resolver';
 import { MonitorCheckHistoryService } from '../monitor-check-history.service';
 import { MonitorService } from '../monitor.service';
 import { MonitorSettingsService } from '../monitor-settings.service';
+import { PubSubService } from '../../pubsub/pubsub.service';
 import { MonitorStatus } from '../monitor-status';
 import { MonitorType } from '../monitor-type';
 
@@ -111,6 +112,18 @@ describe('MonitorResolver', () => {
               uptimePercent: 100,
               avgLatencyMs: null,
             }),
+            fleetUptimeForUser: jest.fn().mockResolvedValue({
+              periodHours: 24,
+              monitorCount: 1,
+              totalChecks: 10,
+              avgUptimePercent: 99.5,
+            }),
+          },
+        },
+        {
+          provide: PubSubService,
+          useValue: {
+            asyncIterator: jest.fn().mockReturnValue({}),
           },
         },
       ],

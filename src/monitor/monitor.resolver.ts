@@ -1,17 +1,19 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Int, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { UuidArgs } from '../common/uuid-args';
+import { PubSubService } from '../pubsub/pubsub.service';
 import type { PublicUser } from '../user/public-user';
 import { CreateMonitorInput } from './dto/create-monitor.input';
 import { UpdateMonitorInput } from './dto/update-monitor.input';
 import { UpdateMonitorSettingsInput } from './dto/update-monitor-settings.input';
 import { Monitor } from './monitor.model';
-import { MonitorCheck, MonitorUptime } from './monitor-check.model';
+import { MonitorCheck, MonitorUptime, FleetUptime } from './monitor-check.model';
 import { MonitorCheckHistoryService } from './monitor-check-history.service';
 import { MonitorCheckResult } from './monitor-check-result.model';
 import { MonitorSettings } from './monitor-settings.model';
+import { monitorUpdatedTrigger } from './monitor.events';
 import { MonitorService, MonitorView } from './monitor.service';
 import {
   MonitorSettingsService,
@@ -24,6 +26,7 @@ export class MonitorResolver {
     private readonly monitorService: MonitorService,
     private readonly settings: MonitorSettingsService,
     private readonly checkHistory: MonitorCheckHistoryService,
+    private readonly pubSub: PubSubService,
   ) {}
 
   @Query(() => [Monitor], {
@@ -156,5 +159,27 @@ export class MonitorResolver {
     hours?: number,
   ) {
     return this.checkHistory.uptimeForMonitor(user.id, id, hours);
+  }
+
+  @Query(() => FleetUptime, {
+    description: 'Average fleet uptime over a time window',
+  })
+  @UseGuards(GqlAuthGuard)
+  fleetUptime(
+    @CurrentUser() user: PublicUser,
+    @Args('hours', { type: () => Int, nullable: true, defaultValue: 24 })
+    hours?: number,
+  ) {
+    return this.checkHistory.fleetUptimeForUser(user.id, hours);
+  }
+
+  @Subscription(() => Monitor, {
+    description: 'Emits when a monitor check updates one of the user monitors',
+  })
+  @UseGuards(GqlAuthGuard)
+  monitorUpdated(
+    @CurrentUser() user: PublicUser,
+  ): AsyncIterableIterator<{ monitorUpdated: MonitorView }> {
+    return this.pubSub.asyncIterator(monitorUpdatedTrigger(user.id));
   }
 }

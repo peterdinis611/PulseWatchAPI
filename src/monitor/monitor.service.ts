@@ -14,6 +14,7 @@ import {
   serializeMonitorConfig,
   type MonitorConfigValue,
 } from './monitor-config';
+import { mapMonitorRow } from './monitor-view';
 import { MonitorRunnerService } from './monitor-runner.service';
 import { MonitorProbeService } from './monitor-probe.service';
 import { MonitorSettingsService } from './monitor-settings.service';
@@ -24,29 +25,14 @@ import {
   hasMonitorConfigUpdate,
 } from './resolve-monitor-config';
 import type { MonitorCheckResultView } from './monitor-check-result.model';
-
-const monitorSelect = {
-  id: true,
-  userId: true,
-  name: true,
-  type: true,
-  enabled: true,
-  intervalSec: true,
-  timeoutMs: true,
-  config: true,
-  lastStatus: true,
-  lastError: true,
-  lastLatencyMs: true,
-  lastCheckedAt: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
+import { monitorSelect } from './monitor.select';
 
 export type MonitorView = {
   id: string;
   name: string;
   type: MonitorType;
   enabled: boolean;
+  alertsMuted: boolean;
   intervalSec: number;
   timeoutMs: number;
   config: MonitorConfigValue;
@@ -77,13 +63,13 @@ export class MonitorService {
         select: monitorSelect,
       });
 
-      return monitors.map((monitor) => this.toView(monitor));
+      return monitors.map((monitor) => mapMonitorRow(monitor));
     });
   }
 
   async findForUser(userId: string, id: string): Promise<MonitorView> {
     return this.cache.wrap(CacheKeys.monitorItem(userId, id), async () =>
-      this.toView(await this.requireOwned(userId, id)),
+      mapMonitorRow(await this.requireOwned(userId, id)),
     );
   }
 
@@ -113,7 +99,7 @@ export class MonitorService {
     this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
     await this.syncJob(created);
 
-    return this.toView(created);
+    return mapMonitorRow(created);
   }
 
   async updateForUser(
@@ -146,6 +132,7 @@ export class MonitorService {
         name: name ?? existing.name,
         type,
         enabled: input.enabled ?? existing.enabled,
+        alertsMuted: input.alertsMuted ?? existing.alertsMuted,
         intervalSec: input.intervalSec ?? existing.intervalSec,
         timeoutMs: input.timeoutMs ?? existing.timeoutMs,
         config: serializeMonitorConfig(config),
@@ -155,7 +142,7 @@ export class MonitorService {
     this.cache.invalidatePrefix(CacheKeys.monitorsPrefix(userId));
     await this.syncJob(updated);
 
-    return this.toView(updated);
+    return mapMonitorRow(updated);
   }
 
   async deleteForUser(userId: string, id: string): Promise<boolean> {
@@ -175,7 +162,7 @@ export class MonitorService {
   async checkForUser(userId: string, id: string): Promise<MonitorView> {
     await this.requireOwned(userId, id);
     const updated = await this.runner.run(id);
-    return this.toView(updated);
+    return mapMonitorRow(updated);
   }
 
   async probeForUser(
@@ -249,37 +236,5 @@ export class MonitorService {
     }
 
     return monitor;
-  }
-
-  private toView(monitor: {
-    id: string;
-    name: string;
-    type: string;
-    enabled: boolean;
-    intervalSec: number;
-    timeoutMs: number;
-    config: string;
-    lastStatus: string;
-    lastError: string | null;
-    lastLatencyMs: number | null;
-    lastCheckedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }): MonitorView {
-    return {
-      id: monitor.id,
-      name: monitor.name,
-      type: monitor.type as MonitorType,
-      enabled: monitor.enabled,
-      intervalSec: monitor.intervalSec,
-      timeoutMs: monitor.timeoutMs,
-      config: parseMonitorConfig(monitor.config),
-      lastStatus: monitor.lastStatus as MonitorStatus,
-      lastError: monitor.lastError,
-      lastLatencyMs: monitor.lastLatencyMs,
-      lastCheckedAt: monitor.lastCheckedAt,
-      createdAt: monitor.createdAt,
-      updatedAt: monitor.updatedAt,
-    };
   }
 }

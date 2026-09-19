@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { PublicUser } from '../../user/public-user';
 import { StressTestResolver } from '../stress-test.resolver';
+import { K6RunnerService } from '../k6-runner.service';
 import { StressTestService } from '../stress-test.service';
 import { StressTestStatus } from '../stress-test-status';
 
@@ -64,6 +65,13 @@ describe('StressTestResolver', () => {
             updateForUser,
             deleteForUser,
             runForUser,
+          },
+        },
+        {
+          provide: K6RunnerService,
+          useValue: {
+            isInstalled: jest.fn().mockResolvedValue(true),
+            statusMessage: jest.fn().mockReturnValue(null),
           },
         },
       ],

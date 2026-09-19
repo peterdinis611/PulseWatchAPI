@@ -6,6 +6,8 @@ import { UuidArgs } from '../common/uuid-args';
 import type { PublicUser } from '../user/public-user';
 import { CreateStressTestInput } from './dto/create-stress-test.input';
 import { UpdateStressTestInput } from './dto/update-stress-test.input';
+import { K6RunnerService } from './k6-runner.service';
+import { K6Status } from './k6-status.model';
 import { StressTestRun } from './stress-test-run.model';
 import { StressTest } from './stress-test.model';
 import {
@@ -16,7 +18,22 @@ import {
 
 @Resolver(() => StressTest)
 export class StressTestResolver {
-  constructor(private readonly stressTestService: StressTestService) {}
+  constructor(
+    private readonly stressTestService: StressTestService,
+    private readonly k6: K6RunnerService,
+  ) {}
+
+  @Query(() => K6Status, {
+    description: 'Whether the k6 CLI is available on the API host',
+  })
+  @UseGuards(GqlAuthGuard)
+  async k6Status(): Promise<K6Status> {
+    const installed = await this.k6.isInstalled();
+    return {
+      installed,
+      message: this.k6.statusMessage(installed),
+    };
+  }
 
   @Query(() => [StressTest], {
     description: 'k6 stress tests owned by the signed-in user',
