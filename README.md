@@ -38,8 +38,22 @@ SQLite súbor je v `data/pulsewatch.sqlite`. Schéma je v `prisma/schema.prisma`
 ```bash
 npm run start:dev
 npm run prisma:migrate
+npm run prisma:seed   # demo účet
 npm run prisma:studio
 npm run test
 npm run test:e2e
 npm run build
 ```
+
+## Demo účet
+
+```bash
+npm run prisma:seed
+```
+
+| | |
+| --- | --- |
+| Email | `demo@pulsewatch.dev` |
+| Heslo | `demo1234` |
+
+Seed vytvorí (alebo obnoví) účet, 3 monitory a uvítacie upozornenie. Prihlásenie: [http://localhost:3000/login](http://localhost:3000/login).

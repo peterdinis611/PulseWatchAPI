@@ -23,7 +23,12 @@
     "test:k6": "jest --testPathPatterns='k6-runner.live|stress-test.live' --no-coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "node prisma/seed.mjs",
+    "seed:demo": "npm run prisma:seed"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",
